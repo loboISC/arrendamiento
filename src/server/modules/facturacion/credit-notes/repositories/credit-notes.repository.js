@@ -1,11 +1,27 @@
 const db = require('../../../../config/database');
 
+const LEDGER_TIPOS_CARGO = ['CARGO', 'COBRO_CREDITO', 'COBRO'];
+const LEDGER_TIPOS_ABONO = ['ABONO', 'PAGO', 'NC'];
+
 /**
  * Repositorio de notas de credito.
  * Estructura de tablas actualizada (20260519):
  * credit_notes: id (UUID), customer_id, tax, relation_type, reason, status, created_at, etc.
  */
 class RepositorioNotasCredito {
+  async asegurarColumnaResponsableTimbrado() {
+    if (this.columnaResponsableTimbradoLista) return;
+    await db.query(`
+      ALTER TABLE public.credit_notes
+      ADD COLUMN IF NOT EXISTS stamped_by INTEGER NULL
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_credit_notes_stamped_by
+      ON public.credit_notes(stamped_by)
+    `).catch(() => null);
+    this.columnaResponsableTimbradoLista = true;
+  }
+
   async buscarFacturas(filtros = {}) {
     const valores = [];
     const condiciones = ["UPPER(COALESCE(f.estado, '')) NOT LIKE 'CANCEL%'"];
@@ -94,21 +110,21 @@ class RepositorioNotasCredito {
     const resultado = await db.query(
       `
         SELECT
-          id_producto AS product_id,
+          NULL AS product_id,
           COALESCE(cantidad, 1) AS cantidad,
-          COALESCE(valor_unitario, precio_unitario, importe, 0) AS precio_unitario,
+          COALESCE(valor_unitario, importe, 0) AS precio_unitario,
           COALESCE(descuento, 0) AS descuento,
-          COALESCE(iva, impuesto, 0) AS iva,
-          COALESCE(total, importe, 0) AS total,
-          COALESCE(clave_producto_servicio, clave_sat, '01010101') AS sat_product_key,
-          COALESCE(clave_unidad, unidad_sat, 'H87') AS sat_unit_key,
-          COALESCE(descripcion, concepto, 'Concepto de factura') AS descripcion
-        FROM factura_conceptos
+          COALESCE(iva_importe, 0) AS iva,
+          COALESCE(importe, 0) AS total,
+          COALESCE(clave_prod_serv, '01010101') AS sat_product_key,
+          COALESCE(clave_unidad, 'H87') AS sat_unit_key,
+          COALESCE(descripcion, 'Concepto de factura') AS descripcion
+        FROM conceptos_factura
         WHERE id_factura = $1
-        ORDER BY id_factura_concepto ASC
+        ORDER BY id_concepto ASC
       `,
       [invoiceId]
-    ).catch(() => ({ rows: [] }));
+    )
 
     if (resultado.rows.length > 0) return resultado.rows;
 
@@ -153,6 +169,35 @@ class RepositorioNotasCredito {
     if (filtros.status) {
       valores.push(String(filtros.status).toUpperCase());
       where += ` AND UPPER(REPLACE(COALESCE(cn.status, ''), ' ', '_')) = $${valores.length}`;
+    }
+
+    if (filtros.search) {
+      const busqueda = `%${String(filtros.search).trim()}%`;
+      if (busqueda !== '%%') {
+        valores.push(busqueda);
+        where += ` AND (
+          COALESCE(cn.folio, '') ILIKE $${valores.length}
+          OR COALESCE(cn.uuid, '') ILIKE $${valores.length}
+          OR cn.id::text ILIKE $${valores.length}
+          OR COALESCE(c.nombre, '') ILIKE $${valores.length}
+          OR COALESCE(c.razon_social, '') ILIKE $${valores.length}
+          OR COALESCE(c.rfc, '') ILIKE $${valores.length}
+          OR COALESCE(f.folio, '') ILIKE $${valores.length}
+          OR COALESCE(f.uuid::text, '') ILIKE $${valores.length}
+          OR COALESCE(u_stamped.nombre, '') ILIKE $${valores.length}
+          OR COALESCE(u_created.nombre, '') ILIKE $${valores.length}
+        )`;
+      }
+    }
+
+    if (filtros.dateFrom) {
+      valores.push(filtros.dateFrom);
+      where += ` AND COALESCE(cn.stamped_at, cn.created_at)::date >= $${valores.length}::date`;
+    }
+
+    if (filtros.dateTo) {
+      valores.push(filtros.dateTo);
+      where += ` AND COALESCE(cn.stamped_at, cn.created_at)::date <= $${valores.length}::date`;
     }
 
     return { where, valores };
@@ -239,6 +284,8 @@ class RepositorioNotasCredito {
   }
 
   async listar(filtros = {}) {
+    await this.asegurarColumnaResponsableTimbrado();
+
     const limit = Math.min(Math.max(Number.parseInt(filtros.limit, 10) || 15, 1), 100);
     const page = Math.max(Number.parseInt(filtros.page, 10) || 1, 1);
     const offset = (page - 1) * limit;
@@ -248,6 +295,8 @@ class RepositorioNotasCredito {
       FROM credit_notes cn
       LEFT JOIN clientes c ON c.id_cliente = cn.customer_id
       LEFT JOIN facturas f ON f.id_factura = cn.id_factura_origen
+      LEFT JOIN usuarios u_stamped ON u_stamped.id_usuario = cn.stamped_by
+      LEFT JOIN usuarios u_created ON u_created.id_usuario = cn.created_by
       ${where}
     `;
 
@@ -262,6 +311,8 @@ class RepositorioNotasCredito {
         cn.*,
         c.nombre AS customer_name,
         c.razon_social,
+        COALESCE(u_stamped.nombre, u_stamped.correo, '') AS stamped_by_name,
+        COALESCE(u_created.nombre, u_created.correo, '') AS created_by_name,
         f.uuid::text AS invoice_uuid_origen,
         f.folio AS invoice_folio_origen,
         (
@@ -567,6 +618,10 @@ class RepositorioNotasCredito {
   }
 
   async actualizarEstado(id, status, extra = {}) {
+    if (extra.stamped_by != null) {
+      await this.asegurarColumnaResponsableTimbrado();
+    }
+
     const resultado = await db.query(
       `
         UPDATE credit_notes
@@ -576,8 +631,10 @@ class RepositorioNotasCredito {
             updated_at = CURRENT_TIMESTAMP,
             sat_status = COALESCE($4::varchar, sat_status),
             pdf_path = COALESCE($5::text, pdf_path),
-            xml_path = COALESCE($6::text, xml_path)
-        WHERE id = $7::uuid
+            xml_path = COALESCE($6::text, xml_path),
+            stamped_by = COALESCE($7::integer, stamped_by),
+            updated_by = COALESCE($8::integer, updated_by)
+        WHERE id = $9::uuid
         RETURNING id
       `,
       [
@@ -587,6 +644,8 @@ class RepositorioNotasCredito {
         extra.sat_status ?? null,
         extra.pdf_path ?? null,
         extra.xml_path ?? null,
+        extra.stamped_by ?? null,
+        extra.updated_by ?? extra.stamped_by ?? null,
         id
       ]
     );
@@ -728,6 +787,47 @@ class RepositorioNotasCredito {
       [customerId]
     );
     return String(resultado.rows[0]?.email || '').trim();
+  }
+
+  async calcularDeudaCliente(clienteId) {
+    const deudaResult = await db.query(
+      `
+        SELECT
+          COALESCE(SUM(CASE WHEN tipo_mov = ANY($2::text[]) THEN cargo ELSE 0 END), 0) AS total_cargo,
+          COALESCE(SUM(CASE WHEN tipo_mov = ANY($3::text[]) THEN abono ELSE 0 END), 0) AS total_abono
+        FROM customer_ledger
+        WHERE id_cliente = $1
+      `,
+      [clienteId, LEDGER_TIPOS_CARGO, LEDGER_TIPOS_ABONO]
+    );
+    const row = deudaResult.rows[0] || {};
+    const totalCargo = parseFloat(row.total_cargo || 0);
+    const totalAbono = parseFloat(row.total_abono || 0);
+    return Number((totalCargo - totalAbono).toFixed(2));
+  }
+
+  async calcularSaldoFacturaLedger(clienteId, facturaOrigenId) {
+    const saldoFacturaRes = await db.query(
+      `
+        SELECT
+          COALESCE(SUM(CASE WHEN tipo_mov = ANY($3::text[]) THEN cargo ELSE 0 END), 0) AS cargo,
+          COALESCE(SUM(CASE WHEN tipo_mov = ANY($4::text[]) THEN abono ELSE 0 END), 0) AS abono
+        FROM customer_ledger
+        WHERE id_cliente = $1 AND referencia_id = $2
+      `,
+      [clienteId, facturaOrigenId, LEDGER_TIPOS_CARGO, LEDGER_TIPOS_ABONO]
+    );
+    const cargo = Number(saldoFacturaRes.rows[0]?.cargo || 0);
+    const abono = Number(saldoFacturaRes.rows[0]?.abono || 0);
+    return Number((cargo - abono).toFixed(2));
+  }
+
+  async obtenerLimiteCredito(clienteId) {
+    const resultado = await db.query(
+      'SELECT COALESCE(limite_credito, 0) AS limite_credito FROM clientes WHERE id_cliente = $1 LIMIT 1',
+      [clienteId]
+    );
+    return Number(resultado.rows[0]?.limite_credito || 0);
   }
 
   convertirMotivoPersistencia(reason) {

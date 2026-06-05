@@ -1,5 +1,8 @@
 // helpers para normalizar y extraer datos de XML de CFDI
 
+const fs = require('fs');
+const path = require('path');
+
 function normalizarXmlString(raw) {
     let xml = String(raw || '');
     if (!xml) return '';
@@ -109,25 +112,38 @@ function extraerDatosSatDesdeXml(rawXml) {
     };
 }
 
+function extraerAtributosComprobante(xml) {
+    const tagMatch = xml.match(/<(?:[\w-]+:)?Comprobante\b([^>]*?)(\/?)>/i);
+    if (!tagMatch?.[1]) return {};
+
+    const attrs = {};
+    const attrRe = /([\w:]+)\s*=\s*"([^"]*)"/g;
+    let match;
+    while ((match = attrRe.exec(tagMatch[1])) !== null) {
+        attrs[match[1]] = match[2];
+    }
+    return attrs;
+}
+
 function extraerTotalesDesdeXml(rawXml) {
     const xml = normalizarXmlString(rawXml);
     if (!xml) return {};
 
-    const getAttr = (names) => {
+    const comprobanteAttrs = extraerAtributosComprobante(xml);
+    const pickAttr = (names) => {
         const nameList = Array.isArray(names) ? names : [names];
         for (const name of nameList) {
-            let match = xml.match(new RegExp(`${name}\\s*=\\s*"([^"]+)"`, 'i'));
-            if (match?.[1]) return match[1];
-            match = xml.match(new RegExp(`${name}\\s*=\\s*'([^']+)'`, 'i'));
-            if (match?.[1]) return match[1];
+            if (comprobanteAttrs[name] !== undefined && comprobanteAttrs[name] !== '') {
+                return comprobanteAttrs[name];
+            }
         }
         return '';
     };
 
-    const subtotal = Number(getAttr(['SubTotal', 'Subtotal']) || 0);
-    const descuento = Number(getAttr(['Descuento']) || 0);
-    const total = Number(getAttr(['Total']) || 0);
-    let iva = Number(getAttr(['TotalImpuestosTrasladados']) || 0);
+    const subtotal = Number(pickAttr(['SubTotal', 'Subtotal']) || 0);
+    const descuento = Number(pickAttr(['Descuento']) || 0);
+    const total = Number(pickAttr(['Total']) || 0);
+    let iva = Number(pickAttr(['TotalImpuestosTrasladados']) || 0);
 
     if (!iva) {
         const traslados = [...xml.matchAll(/<[^:>]*:?Traslado[^>]*\s+[^>]*Importe\s*=\s*"([^"]+)"[^>]*>/gi)];
@@ -145,8 +161,86 @@ function extraerTotalesDesdeXml(rawXml) {
     };
 }
 
+/**
+ * Obtiene el XML timbrado desde la respuesta de Facturama (varios nombres de campo).
+ * @returns {string} XML normalizado o cadena vacía
+ */
+function extraerXmlDesdeRespuestaFacturama(respuesta = {}) {
+    const candidates = [
+        respuesta.Cfdi,
+        respuesta.Xml,
+        respuesta.xml,
+        respuesta.cfdi,
+        respuesta.Content,
+        respuesta.content
+    ];
+    for (const raw of candidates) {
+        const xml = normalizarXmlString(raw);
+        if (xml && xml.trim().startsWith('<')) {
+            return xml;
+        }
+    }
+    return '';
+}
+
+/**
+ * Resuelve totales para PDF/BD priorizando el XML timbrado, luego JSON de Facturama.
+ */
+function resolverTotalesDesdeTimbrado({ respuestaFacturama = {}, xmlTimbrado = '', totalesLocales = {} }) {
+    const xml = normalizarXmlString(xmlTimbrado);
+    const totalesXml = extraerTotalesDesdeXml(xml);
+    const xmlValido = xml.trim().startsWith('<') && totalesXml.total > 0;
+
+    if (xmlValido) {
+        return { ...totalesXml, fuente: 'xml' };
+    }
+
+    const subtotal = Number(
+        respuestaFacturama.Subtotal || respuestaFacturama.SubTotal || totalesLocales.subtotal || 0
+    );
+    const descuento = Number(
+        respuestaFacturama.Discount || respuestaFacturama.Descuento || totalesLocales.descuento || 0
+    );
+    let iva = 0;
+    if (respuestaFacturama.Impuestos?.TotalImpuestosTrasladados !== undefined) {
+        iva = Number(respuestaFacturama.Impuestos.TotalImpuestosTrasladados);
+    } else if (respuestaFacturama.TotalImpuestosTrasladados !== undefined) {
+        iva = Number(respuestaFacturama.TotalImpuestosTrasladados);
+    } else {
+        iva = Number(totalesLocales.iva || 0);
+    }
+    const total = Number(respuestaFacturama.Total || totalesLocales.total || 0);
+
+    return {
+        subtotal: Number(subtotal.toFixed(2)),
+        descuento: Number(descuento.toFixed(2)),
+        iva: Number(iva.toFixed(2)),
+        total: Number(total.toFixed(2)),
+        fuente: 'facturama'
+    };
+}
+
+/**
+ * Persiste XML en disco con validación mínima (UTF-8).
+ */
+function guardarXmlEnDisco(xmlContent, rutaArchivo) {
+    const xml = normalizarXmlString(xmlContent);
+    if (!xml || !xml.trim().startsWith('<')) {
+        throw new Error('Contenido XML vacío o inválido para guardar en disco.');
+    }
+    const dir = path.dirname(rutaArchivo);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(rutaArchivo, xml, 'utf8');
+    return rutaArchivo;
+}
+
 module.exports = {
     normalizarXmlString,
     extraerDatosSatDesdeXml,
-    extraerTotalesDesdeXml
+    extraerTotalesDesdeXml,
+    extraerXmlDesdeRespuestaFacturama,
+    resolverTotalesDesdeTimbrado,
+    guardarXmlEnDisco
 };

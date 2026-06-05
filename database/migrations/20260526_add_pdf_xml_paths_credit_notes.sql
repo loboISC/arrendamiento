@@ -9,3 +9,4 @@ ADD COLUMN IF NOT EXISTS stamped_by INTEGER NULL;
 -- Crear índices para búsquedas rápidas
 CREATE INDEX IF NOT EXISTS idx_credit_notes_pdf_path ON credit_notes(pdf_path);
 CREATE INDEX IF NOT EXISTS idx_credit_notes_xml_path ON credit_notes(xml_path);
+CREATE INDEX IF NOT EXISTS idx_credit_notes_stamped_by ON credit_notes(stamped_by);

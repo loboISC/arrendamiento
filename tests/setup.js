@@ -1,21 +1,20 @@
 require('dotenv').config({ path: '.env.test' });
 
-// Mock del módulo de base de datos ANTES de que se cargue en cualquier otro módulo
-jest.mock('../src/db', () => {
-    const mockPool = {
-        query: jest.fn(() => Promise.resolve({ rows: [], rowCount: 0 })),
-        connect: jest.fn(() => Promise.resolve({
-            query: jest.fn(),
-            release: jest.fn()
-        })),
-        end: jest.fn()
-    };
+// Mock de xmlService para evitar errores de ESM de sus dependencias en Jest
+jest.mock('../src/server/services/facturacion/xmlService', () => ({
+    construirCfdi40: jest.fn(),
+    sellarXml: jest.fn()
+}), { virtual: true });
 
-    return {
-        query: mockPool.query,
-        pool: mockPool
-    };
-});
+// Mock del módulo de base de datos usando el mock compartido
+const mockDb = require('./__mocks__/db');
+
+// Configurar default mock implementation para query para evitar que retorne undefined por defecto
+mockDb.query.mockResolvedValue({ rows: [], rowCount: 0 });
+
+jest.mock('../src/db', () => mockDb, { virtual: true });
+jest.mock('../src/server/config/database', () => mockDb, { virtual: true });
+
 
 // Mock de console para tests más limpios
 const originalLog = console.log;

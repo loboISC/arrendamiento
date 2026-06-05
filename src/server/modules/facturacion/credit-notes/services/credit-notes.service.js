@@ -318,12 +318,14 @@ class ServicioNotasCredito {
 
   construirPayloadTimbrado(nota, emisorConfig) {
     const emisor = this.resolverConfigEmisor(emisorConfig);
+    const rfcReceptor = String(nota.customer_rfc || '').trim().toUpperCase();
+    const esPublicoGeneral = rfcReceptor === 'XAXX010101000';
     const receptor = {
-      Rfc: nota.customer_rfc,
-      Name: nota.customer_name || nota.razon_social,
-      CfdiUse: 'G02',
-      FiscalRegime: nota.tax_regime,
-      TaxZipCode: nota.postal_code
+      Rfc: rfcReceptor || nota.customer_rfc,
+      Name: esPublicoGeneral ? 'PUBLICO EN GENERAL' : (nota.customer_name || nota.razon_social),
+      CfdiUse: esPublicoGeneral ? 'S01' : 'G02',
+      FiscalRegime: esPublicoGeneral ? '616' : nota.tax_regime,
+      TaxZipCode: esPublicoGeneral ? emisor.codigo_postal : nota.postal_code
     };
 
     const metodoPago = String(nota.metodo_pago || 'PUE').toUpperCase();
@@ -377,6 +379,7 @@ class ServicioNotasCredito {
   }
 
   async timbrar(id, usuario) {
+    const usuarioId = usuario?.id_usuario || usuario?.id || null;
     const nota = await this.repositorio.obtenerPorId(id);
     if (!nota) {
       const error = new Error('Nota de credito no encontrada.');
@@ -389,7 +392,7 @@ class ServicioNotasCredito {
       throw error;
     }
 
-    await this.repositorio.actualizarEstado(id, 'TIMBRANDO');
+    await this.repositorio.actualizarEstado(id, 'TIMBRANDO', { updated_by: usuarioId });
     const proveedor = this.obtenerProveedor(nota.provider || 'facturama');
     const notaConImpuestos = this.asegurarImpuestosNota(nota);
     const emisorConfig = await this.repositorio.obtenerConfigEmisor();
@@ -475,6 +478,8 @@ class ServicioNotasCredito {
         sat_status: 'VIGENTE',
         uuid,
         stamped_at: new Date(),
+        stamped_by: usuarioId,
+        updated_by: usuarioId,
         pdf_path: pdfPath || nota.pdf_path || null,
         xml_path: xmlPath || nota.xml_path || null
       });

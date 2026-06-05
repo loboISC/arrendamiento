@@ -1,5 +1,15 @@
 /* Tarjeta 3 — Formulario de concepto (estilo SAT) + tabla con scroll. */
 window.ComponenteTablaConceptosNC = {
+  escapeHtml(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[caracter]));
+  },
+
   calcularImporteFormulario(f, estado) {
     const cantidad = Number(f.cantidad || 0);
     const precio = Number(f.precio_unitario || 0);
@@ -115,8 +125,13 @@ window.ComponenteTablaConceptosNC = {
                 <label for="nc-form-clave-producto">Clave de producto o servicio <span class="nc-req">*</span></label>
                 <select class="nc-select" id="nc-form-clave-producto" data-nc-form-campo="sat_product_key">
                   ${catalogoConceptos.map((sat) => `
-                    <option value="${sat.clave}" ${sat.clave === (f.sat_product_key || '84111506') ? 'selected' : ''}>
-                      ${sat.clave} ${sat.descripcion}
+                    <option value="${window.ComponenteTablaConceptosNC.escapeHtml(sat.clave)}"
+                      data-nc-service-id="${window.ComponenteTablaConceptosNC.escapeHtml(sat.servicio_id || '')}"
+                      data-nc-service-price="${window.ComponenteTablaConceptosNC.escapeHtml(sat.precio_unitario ?? '')}"
+                      data-nc-service-unit="${window.ComponenteTablaConceptosNC.escapeHtml(sat.clave_unidad || '')}"
+                      data-nc-service-name="${window.ComponenteTablaConceptosNC.escapeHtml(sat.nombre_servicio || sat.descripcion || '')}"
+                      ${sat.clave === (f.sat_product_key || '84111506') ? 'selected' : ''}>
+                      ${window.ComponenteTablaConceptosNC.escapeHtml(sat.clave)} ${window.ComponenteTablaConceptosNC.escapeHtml(sat.descripcion)}
                     </option>
                   `).join('')}
                 </select>
@@ -149,7 +164,7 @@ window.ComponenteTablaConceptosNC = {
               <div class="nc-form-grupo nc-form-grupo-full nc-form-grupo-req">
                 <label for="nc-form-descripcion">Descripción <span class="nc-req">*</span></label>
                 <input class="nc-input" type="text" id="nc-form-descripcion" data-nc-form-campo="descripcion"
-                  value="${f.descripcion || ''}" placeholder="Ej: Bonificación por servicios realizados">
+                  value="${f.descripcion || ''}" placeholder="Ej: Descuento conforme acuerdo con el cliente" autocomplete="off">
               </div>
               <div class="nc-form-grupo nc-form-grupo-req">
                 <label for="nc-form-valor-unitario">Valor unitario <span class="nc-req">*</span></label>

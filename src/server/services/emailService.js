@@ -202,7 +202,101 @@ class EmailService {
         }
     }
 
-    async enviarComprobanteAbono(destinatario, asunto, contenido, rutaPDF, nombrePDF = 'comprobante-abono.pdf', smtpConfig = null) {
+    _plantillaNcCobranza(titulo, lineasHtml, colorAcento = '#2979ff') {
+        return `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e3e8ef; border-radius: 12px; overflow: hidden; background-color: #ffffff;">
+                <div style="padding: 30px; background: #ffffff;">
+                    <h2 style="color: #232323; margin-top: 0; font-size: 22px; border-bottom: 3px solid ${colorAcento}; padding-bottom: 10px;">${titulo}</h2>
+                    <div style="color: #4b5563; line-height: 1.8; font-size: 15px; margin-top: 20px;">
+                        ${lineasHtml}
+                    </div>
+                    <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid ${colorAcento};">
+                        <p style="margin: 0; color: #1e293b; font-size: 14px; font-weight: 600;">Documentos adjuntos:</p>
+                        <p style="margin: 8px 0 0 0; color: #475569; font-size: 13px;">Nota de crédito (PDF)<br>Nota de crédito (XML)</p>
+                    </div>
+                    <p style="color: #6b7280; font-size: 13px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                        Cualquier pregunta o aclaración, favor de contactar al departamento de cobranza.
+                    </p>
+                </div>
+                <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e3e8ef;">
+                    <p style="margin: 0; font-weight: 600;">© 2025 Andamios Torres S.A. de C.V.</p>
+                    <p style="margin: 5px 0 0 0;">Este es un correo automático, por favor no responda a este mensaje.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    _adjuntosNotaCredito(rutaPDF, rutaXML) {
+        const attachments = [];
+        if (rutaPDF && fs.existsSync(rutaPDF)) {
+            attachments.push({
+                filename: path.basename(rutaPDF),
+                path: rutaPDF,
+                contentType: 'application/pdf'
+            });
+        }
+        if (rutaXML && fs.existsSync(rutaXML)) {
+            attachments.push({
+                filename: path.basename(rutaXML),
+                path: rutaXML,
+                contentType: 'application/xml'
+            });
+        }
+        return attachments;
+    }
+
+    async enviarNcAplicadaAutomaticamente(destinatario, rfcCliente, datos, rutaPDF, rutaXML = null, smtpConfig = null) {
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+        const facturaLinea = datos.saldoFacturaAntes != null
+            ? `<p><strong>Factura relacionada:</strong> ${fmt(datos.saldoFacturaAntes)} → ${fmt(datos.saldoFacturaDespues)}</p>`
+            : '';
+        const lineas = `
+            <p>Tu nota de crédito ha sido aplicada al saldo pendiente de tu factura.</p>
+            <p><strong>Deuda anterior:</strong> ${fmt(datos.deudaActual)}<br>
+            <strong>Nota de crédito:</strong> -${fmt(datos.montoNc)}<br>
+            <strong>Deuda después de aplicar:</strong> ${fmt(datos.deudaDespues)}</p>
+            ${facturaLinea}
+            <p>El movimiento ha sido registrado en cuentas por cobrar.</p>
+        `;
+        const asunto = `Nota de crédito aplicada a tu cuenta — ${rfcCliente || 'Cliente'}`;
+        return this._enviarCorreoNcPersonalizado(destinatario, asunto, 'Nota de crédito aplicada', lineas, rutaPDF, rutaXML, smtpConfig, '#2979ff');
+    }
+
+    async enviarNcSaldoFavor(destinatario, rfcCliente, datos, rutaPDF, rutaXML = null, smtpConfig = null) {
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+        const lineas = `
+            <p>Tu nota de crédito ha sido acreditada como saldo a favor.</p>
+            <p><strong>Límite de crédito actual:</strong> ${fmt(datos.limiteActual)}<br>
+            <strong>Saldo a favor agregado:</strong> +${fmt(datos.montoNc)}<br>
+            <strong>Límite después de agregar:</strong> ${fmt(datos.limiteDespues)}<br>
+            <strong>Crédito disponible proyectado:</strong> ${fmt(datos.creditoDisponibleProyectado)}</p>
+        `;
+        const asunto = `Saldo a favor acreditado en tu cuenta — ${rfcCliente || 'Cliente'}`;
+        return this._enviarCorreoNcPersonalizado(destinatario, asunto, 'Saldo a favor acreditado', lineas, rutaPDF, rutaXML, smtpConfig, '#0e7490');
+    }
+
+    async _enviarCorreoNcPersonalizado(destinatario, asunto, titulo, lineasHtml, rutaPDF, rutaXML, smtpConfig, colorAcento) {
+        if (!rutaPDF || !fs.existsSync(rutaPDF)) {
+            throw new Error('El archivo PDF de la nota de crédito no existe');
+        }
+        const transporter = this.getTransporter(smtpConfig);
+        const senderEmail = smtpConfig?.usuario || process.env.SMTP_USER || 'sistemas@andamiostorres.com';
+        const fromName = (smtpConfig?.correo_from && smtpConfig.correo_from !== senderEmail) ? smtpConfig.correo_from : 'Andamios Torres';
+        const from = `"${fromName}" <${senderEmail}>`;
+        const mailOptions = {
+            from,
+            to: destinatario,
+            bcc: senderEmail,
+            subject: asunto,
+            html: this._plantillaNcCobranza(titulo, lineasHtml, colorAcento),
+            attachments: this._adjuntosNotaCredito(rutaPDF, rutaXML)
+        };
+        const info = await transporter.sendMail(mailOptions);
+        console.log('NC aplicación email sent: %s', info.messageId);
+        return { success: true, messageId: info.messageId };
+    }
+
+    async enviarComprobanteAbono(destinatario, asunto, contenido, rutaPDF, nombrePDF = 'comprobante-abono.pdf', smtpConfig = null, extraAttachments = []) {
         try {
             // Verificar que el archivo PDF existe
             if (!fs.existsSync(rutaPDF)) {
@@ -221,6 +315,7 @@ class EmailService {
                     contentType: 'application/pdf'
                 }
             ];
+            attachments.push(...extraAttachments.filter((adjunto) => adjunto && adjunto.path && fs.existsSync(adjunto.path)));
 
             const mailOptions = {
                 from: from,

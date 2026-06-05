@@ -75,6 +75,141 @@ window.ComponenteAplicacionCobranzaNC = {
     };
   },
 
+  obtenerToken() {
+    return localStorage.getItem('token') || '';
+  },
+
+  moneda(valor) {
+    if (window.NotasCreditoUI?.moneda) return window.NotasCreditoUI.moneda(valor);
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(valor || 0));
+  },
+
+  numero(valor) {
+    const n = Number(valor || 0);
+    return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
+  },
+
+  resolverClienteId(estado) {
+    return estado.notaGuardada?.customer_id
+      || estado.notaGuardada?.id_cliente
+      || estado.facturaSeleccionada?.customer_id
+      || estado.facturaSeleccionada?.id_cliente
+      || null;
+  },
+
+  resolverNotaId(estado) {
+    return estado.notaGuardada?.id || null;
+  },
+
+  async consultarJson(ruta) {
+    const respuesta = await fetch(ruta, {
+      headers: { Authorization: `Bearer ${this.obtenerToken()}` }
+    });
+    const json = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok || json.success === false) {
+      throw new Error(json.error || 'No se pudo consultar informacion financiera.');
+    }
+    return json;
+  },
+
+  pintarResumenFinanciero(resumen) {
+    const aplicarEl = document.getElementById('nc-aplicar-detalle-financiero');
+    const saldoEl = document.getElementById('nc-saldo-favor-detalle');
+    if (!aplicarEl || !saldoEl) return;
+
+    if (!resumen?.ok) {
+      const mensaje = resumen?.mensaje || 'No fue posible consultar deuda y limite del cliente.';
+      aplicarEl.dataset.financieroCargado = '1';
+      saldoEl.dataset.financieroCargado = '1';
+      aplicarEl.innerHTML = `<small><i class="fa fa-triangle-exclamation"></i> ${mensaje}</small>`;
+      saldoEl.innerHTML = `<small><i class="fa fa-triangle-exclamation"></i> ${mensaje}</small>`;
+      return;
+    }
+
+    aplicarEl.dataset.financieroCargado = '1';
+    saldoEl.dataset.financieroCargado = '1';
+    aplicarEl.innerHTML = `
+      <small>
+        <i class="fa fa-calculator"></i>
+        Deuda actual: <strong>${this.moneda(resumen.deudaActual)}</strong> ·
+        Nota de credito: <strong>-${this.moneda(resumen.montoNota)}</strong> ·
+        Deuda despues de aplicar: <strong>${this.moneda(resumen.deudaDespues)}</strong>
+        ${resumen.saldoFacturaAntes != null ? `<br>Factura relacionada: ${this.moneda(resumen.saldoFacturaAntes)} -> ${this.moneda(resumen.saldoFacturaDespues)}` : ''}
+      </small>
+    `;
+
+    saldoEl.innerHTML = `
+      <small>
+        <i class="fa fa-piggy-bank"></i>
+        Limite actual: <strong>${this.moneda(resumen.limiteActual)}</strong> ·
+        Saldo a favor: <strong>+${this.moneda(resumen.montoNota)}</strong> ·
+        Limite despues de agregar saldo: <strong>${this.moneda(resumen.limiteDespues)}</strong>
+        <br>Credito disponible proyectado: <strong>${this.moneda(resumen.creditoDisponibleDespues)}</strong>
+      </small>
+    `;
+  },
+
+  async cargarResumenFinanciero(estado) {
+    const clienteId = this.resolverClienteId(estado);
+    const notaId = this.resolverNotaId(estado);
+    const montoFallback = Number(estado.totales?.total ?? estado.notaGuardada?.total ?? 0);
+
+    if (!clienteId || !notaId) {
+      this.pintarResumenFinanciero({
+        ok: false,
+        mensaje: 'Cliente o nota de credito sin identificador para consultar saldos.'
+      });
+      return;
+    }
+
+    try {
+      const [detalleCliente, notasCliente, notaActual] = await Promise.all([
+        this.consultarJson(`/api/clientes/credito/${clienteId}/detalle`),
+        this.consultarJson(`/api/clientes/${clienteId}/credit-notes`),
+        this.consultarJson(`/api/credit-notes/${notaId}`)
+      ]);
+
+      const cliente = detalleCliente.data || {};
+      const nota = notaActual.data || {};
+      const notas = Array.isArray(notasCliente.data) ? notasCliente.data : [];
+      const montoNota = this.numero(nota.total ?? montoFallback);
+      const deudaActual = this.numero(cliente.deuda ?? cliente.deuda_actual ?? 0);
+      const limiteActual = this.numero(cliente.limite_credito ?? 0);
+      const deudaDespues = this.numero(Math.max(deudaActual - montoNota, 0));
+      const limiteDespues = this.numero(limiteActual + montoNota);
+      const creditoDisponibleDespues = this.numero(limiteDespues - deudaActual);
+
+      const facturaOrigenId = Number(nota.id_factura_origen || estado.facturaSeleccionada?.invoice_id || 0);
+      const creditoFactura = (cliente.creditos || []).find((credito) => (
+        Number(credito?.id_factura || 0) === facturaOrigenId
+      ));
+      const saldoFacturaAntes = creditoFactura
+        ? this.numero(creditoFactura.saldo)
+        : (estado.facturaSeleccionada?.saldo_disponible != null ? this.numero(estado.facturaSeleccionada.saldo_disponible) : null);
+      const saldoFacturaDespues = saldoFacturaAntes == null
+        ? null
+        : this.numero(Math.max(saldoFacturaAntes - montoNota, 0));
+
+      this.pintarResumenFinanciero({
+        ok: true,
+        deudaActual,
+        limiteActual,
+        montoNota,
+        deudaDespues,
+        limiteDespues,
+        creditoDisponibleDespues,
+        saldoFacturaAntes,
+        saldoFacturaDespues,
+        totalNotasCreditoCliente: notas.length
+      });
+    } catch (error) {
+      this.pintarResumenFinanciero({
+        ok: false,
+        mensaje: error.message || 'No se pudo consultar informacion financiera.'
+      });
+    }
+  },
+
   actualizarUiOpciones() {
     const monto = Number(document.getElementById('nc-aplicacion-monto')?.dataset?.monto || 0);
     const plazo = this.calcularPlazoDevolucion(monto);
@@ -92,6 +227,11 @@ window.ComponenteAplicacionCobranzaNC = {
         </small>
       `;
       plazoEl.style.display = tipo === 'DEVOLUCION' ? 'block' : 'none';
+    }
+
+    if (saldoEl?.dataset.financieroCargado === '1') {
+      saldoEl.style.display = 'block';
+      return;
     }
 
     if (saldoEl) {
@@ -168,8 +308,11 @@ window.ComponenteAplicacionCobranzaNC = {
                       La nota de crédito se aplicará automáticamente al saldo pendiente de la factura relacionada,
                       reduciendo la deuda del cliente.
                     </p>
-                    <div class="nc-opcion-detalles">
+                    <div class="nc-opcion-detalles" id="nc-aplicar-detalle-base">
                       <small><i class="fa fa-info-circle"></i> El movimiento se registrará en cuentas por cobrar.</small>
+                    </div>
+                    <div class="nc-opcion-detalles nc-opcion-detalles-info" id="nc-aplicar-detalle-financiero">
+                      <small><i class="fa fa-spinner fa-spin"></i> Consultando deuda del cliente...</small>
                     </div>
                   </div>
 
@@ -253,5 +396,6 @@ window.ComponenteAplicacionCobranzaNC = {
     `;
 
     this.actualizarUiOpciones();
+    this.cargarResumenFinanciero(estado);
   }
 };

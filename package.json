@@ -18,15 +18,37 @@
     "test:coverage": "jest --coverage",
     "test:verbose": "jest --verbose"
   },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js",
+      "**/__tests__/**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "\\.agents"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "moduleNameMapper": {
+      "^@nodecfdi/(.*)$": "<rootDir>/tests/__mocks__/@nodecfdi.js"
+    }
+  },
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.1",
     "@vitejs/plugin-react": "^4.6.0",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^40.1.0",
     "electron-builder": "^26.7.0",
+    "eslint": "^10.4.0",
     "jest": "^30.2.0",
+    "prettier": "^3.8.3",
     "supertest": "^7.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
     "vite": "^7.0.0",
     "wait-on": "^9.0.0"
   },
@@ -39,6 +61,7 @@
     "@nodecfdi/cfdi-core": "^1.0.1",
     "@nodecfdi/cfdi-to-pdf": "^1.6.0",
     "@nodecfdi/credentials": "^2.0.3",
+    "@prisma/client": "^7.8.0",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "bootstrap-icons": "^1.13.1",
@@ -52,6 +75,7 @@
     "nodemailer": "^7.0.5",
     "pdfkit": "^0.17.1",
     "pg": "^8.16.3",
+    "prisma": "^7.8.0",
     "puppeteer": "^24.31.0",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",

@@ -184,10 +184,10 @@ const getClienteByIdCompleto = async (req, res) => {
     const facturasResult = await pool.query(`
       SELECT 
         f.*,
-        COUNT(fc.id_factura_concepto) as total_conceptos,
+        COUNT(fc.id_concepto) as total_conceptos,
         COALESCE(SUM(p.monto), 0) as total_pagado
       FROM facturas f
-      LEFT JOIN factura_conceptos fc ON f.id_factura = fc.id_factura
+      LEFT JOIN conceptos_factura fc ON f.id_factura = fc.id_factura
       LEFT JOIN pagos p ON f.id_factura = p.id_factura AND p.estado = 'APLICADO'
       WHERE f.id_cliente = $1
       GROUP BY f.id_factura

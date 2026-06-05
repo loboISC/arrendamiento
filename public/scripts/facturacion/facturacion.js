@@ -23,6 +23,48 @@ function formatearMoneda(amount) {
     return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
 }
 
+function esUuidBorradorFactura(uuid) {
+    return String(uuid || '').toUpperCase().startsWith('BORRADOR');
+}
+
+function mapearEstadoFacturaBadge(estadoRaw, metodoPago) {
+    const estado = String(estadoRaw || 'BORRADOR').toUpperCase().trim();
+    const metodo = String(metodoPago || 'PUE').toUpperCase();
+
+    if (estado.includes('PENDIENTE') && metodo === 'PUE') {
+        return { estadoClass: 'badge-pue', estadoTexto: 'APLICADA' };
+    }
+    if (estado.includes('PENDIENTE') && metodo === 'PPD') {
+        return { estadoClass: 'badge-timbrado', estadoTexto: 'TIMBRADA' };
+    }
+
+    switch (estado) {
+        case 'BORRADOR':
+            return { estadoClass: 'badge-borrador', estadoTexto: 'BORRADOR' };
+        case 'TIMBRANDO':
+            return { estadoClass: 'badge-warning', estadoTexto: 'TIMBRANDO' };
+        case 'TIMBRADA':
+        case 'TIMBRADO':
+            return { estadoClass: 'badge-timbrado', estadoTexto: 'TIMBRADA' };
+        case 'ERROR':
+            return { estadoClass: 'badge-danger', estadoTexto: 'ERROR' };
+        case 'CANCELADA':
+        case 'CANCELADO':
+            return { estadoClass: 'badge-cancelado', estadoTexto: 'CANCELADA' };
+        case 'APLICADA':
+        case 'PAGADA':
+            return { estadoClass: 'badge-pue', estadoTexto: 'APLICADA' };
+        case 'PARCIAL':
+            return { estadoClass: 'badge-pendiente', estadoTexto: 'PARCIAL' };
+        case 'PENDIENTE':
+        case 'PENDIENTE_PAGO':
+        case 'PENDIENTE PPD':
+            return { estadoClass: 'badge-timbrado', estadoTexto: 'TIMBRADA' };
+        default:
+            return { estadoClass: 'badge-borrador', estadoTexto: estado || 'BORRADOR' };
+    }
+}
+
 // Escuchar evento F5 para recargar la página
 document.addEventListener('keydown', function (e) {
     if (e.key === 'F5' || e.keyCode === 116) {
@@ -805,13 +847,13 @@ function renderizarGraficosDashboard() {
 
         // Colores según estado
         const colorMap = {
-            'Timbrada': '#2979ff',
-            'Timbrado': '#2979ff',
-            'Pendiente': '#ff9800',
-            'Pendiente PPD': '#ff9800',
-            'Cancelada': '#f44336',
-            'Cancelado': '#f44336',
-            'Borrador': '#94a3b8'
+            Timbrada: '#2979ff',
+            Aplicada: '#2e7d32',
+            Parcial: '#ff9800',
+            Borrador: '#94a3b8',
+            Cancelada: '#f44336',
+            Error: '#f44336',
+            Timbrando: '#f57f17'
         };
         const backgroundColors = labels.map(l => colorMap[l] || '#cbd5e1');
 
@@ -953,34 +995,15 @@ function actualizarTablaFacturas() {
 
     facturas.forEach(factura => {
         const row = document.createElement('tr');
+        if (factura.uuid) row.dataset.facturaUuid = factura.uuid;
         const esComplementoPago = Boolean(factura?.es_complemento_pago)
             || String(factura?.uso_cfdi || '').toUpperCase() === 'CP01'
             || String(factura?.folio || '').toUpperCase().startsWith('P-');
 
-        // Determinar clase de estado y texto según imagen
-        let estadoClass = '';
-        let estadoTexto = factura.estado || 'BORRADOR';
-
-        switch (estadoTexto.toUpperCase()) {
-            case 'TIMBRADA':
-            case 'TIMBRADO':
-                estadoClass = 'badge-timbrado';
-                estadoTexto = 'TIMBRADO';
-                break;
-            case 'PENDIENTE':
-            case 'PENDIENTE PPD':
-                estadoClass = 'badge-pendiente';
-                estadoTexto = 'PENDIENTE PPD';
-                break;
-            case 'CANCELADA':
-            case 'CANCELADO':
-                estadoClass = 'badge-cancelado';
-                estadoTexto = 'CANCELADO';
-                break;
-            default:
-                estadoClass = 'badge-borrador';
-                estadoTexto = 'BORRADOR';
-        }
+        const esBorrador = factura.estado === 'BORRADOR' || esUuidBorradorFactura(factura.uuid);
+        const badgeEstado = mapearEstadoFacturaBadge(factura.estado, factura.metodo_pago);
+        const estadoClass = badgeEstado.estadoClass;
+        const estadoTexto = badgeEstado.estadoTexto;
 
         row.innerHTML = `
             <td class="text-center"><input type="checkbox"></td>
@@ -1028,6 +1051,9 @@ function actualizarTablaFacturas() {
                 <span class="badge badge-pue">${factura.metodo_pago || 'PUE'}</span>
             </td>
             <td>
+                <span style="color: #555; font-size: 0.9em; font-weight: 500;">${factura.responsable_nombre || 'N/A'}</span>
+            </td>
+            <td>
                 <strong style="color: #333;">$${Number(esComplementoPago ? factura.complemento_monto || 0 : factura.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong><br>
                 <small style="color: #888;">MXN${esComplementoPago ? ' (abono)' : ''}</small>
             </td>
@@ -1037,15 +1063,21 @@ function actualizarTablaFacturas() {
                         <i class="fa fa-ellipsis-v"></i>
                     </button>
                     <div class="actions-menu">
+                        ${esBorrador ? `
+                        <a href="#" onclick="continuarBorradorFactura(${factura.id_factura}); return false;">
+                            <i class="fa fa-pen" style="color: #2979ff;"></i> Continuar borrador
+                        </a>
+                        ` : `
                         <a href="#" onclick="verFactura('${factura.uuid}')">
                             <i class="fa fa-eye" style="color: #2979ff;"></i> Ver Detalle
                         </a>
                         <a href="#" onclick="descargarPDF('${factura.uuid}')">
                             <i class="fa fa-file-pdf" style="color: #f44336;"></i> Descargar PDF
                         </a>
-                        <a href="#" onclick="cancelarFacturaWeb('${factura.uuid}')" style="color: #d32f2f;">
+                        <a href="#" onclick="cancelarFacturaWeb(event, '${factura.uuid}')" style="color: #d32f2f;">
                             <i class="fa fa-ban"></i> Cancelar Fiscal
                         </a>
+                        `}
                     </div>
                 </div>
             </td>
@@ -1142,64 +1174,281 @@ async function descargarPDF(uuid) {
 }
 
 
-// Función para cancelar factura
-async function cancelarFacturaWeb(uuid) {
-    try {
-        const { value: motivo } = await Swal.fire({
-            title: '¿Estás seguro de cancelar esta factura?',
-            text: "Esta acción es irreversible ante el SAT.",
-            icon: 'warning',
-            input: 'select',
-            inputOptions: {
-                '01': '01 - Comprobante emitido con errores con relación',
-                '02': '02 - Comprobante emitido con errores sin relación',
-                '03': '03 - No se llevó a cabo la operación',
-                '04': '04 - Operación nominativa relacionada en una factura global'
-            },
-            inputPlaceholder: 'Selecciona el motivo de cancelación',
-            showCancelButton: true,
-            confirmButtonColor: '#f44336',
-            cancelButtonColor: '#2979ff',
-            confirmButtonText: 'Sí, cancelar factura',
-            cancelButtonText: 'No, regresar',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'Debes seleccionar un motivo de cancelación';
-                }
-            }
-        });
+// --- Cancelación fiscal (modal SAT) ---
+let cancelacionFacturaUuidActivo = null;
+const REGEX_UUID_SAT = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-        if (motivo) {
-            Swal.fire({
-                title: 'Cancelando...',
-                text: 'Comunicándose con Facturama y el SAT',
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            const token = localStorage.getItem('token');
-            const response = await fetch(`/api/facturas/${uuid}/cancelar`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ motivo: motivo })
-            });
-
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-                Swal.fire('¡Cancelada!', 'La factura ha sido cancelada fiscalmente.', 'success');
-                cargarFacturas(); // Recargar tabla
-            } else {
-                Swal.fire('Error', result.error || 'No se pudo cancelar la factura', 'error');
-            }
+function cancelarFacturaWeb(eventOrUuid, uuidMaybe) {
+    let uuid;
+    if (typeof eventOrUuid === 'string') {
+        uuid = eventOrUuid;
+    } else {
+        if (eventOrUuid) {
+            eventOrUuid.preventDefault();
+            eventOrUuid.stopPropagation();
         }
-    } catch (error) {
-        console.error('Error en cancelarFacturaWeb:', error);
-        Swal.fire('Error', 'Ocurrió un error al procesar la cancelación', 'error');
+        uuid = uuidMaybe;
+    }
+    if (!uuid) return;
+    abrirModalCancelarFactura(uuid);
+}
+
+function abrirModalCancelarFactura(uuid) {
+    cancelacionFacturaUuidActivo = uuid;
+    const factura = facturas.find(f => f.uuid === uuid)
+        || facturasCompletas.find(f => f.uuid === uuid)
+        || {};
+
+    const modal = document.getElementById('cancelar-factura-modal');
+    const folioEl = document.getElementById('cancelar-factura-folio');
+    const uuidEl = document.getElementById('cancelar-factura-uuid-display');
+    const motivoEl = document.getElementById('cancelar-factura-motivo');
+    const sustInput = document.getElementById('cancelar-factura-uuid-sustitucion');
+    const apiError = document.getElementById('cancelar-factura-api-error');
+    const acuseWrap = document.getElementById('cancelar-factura-acuse-wrap');
+
+    if (!modal) return;
+
+    if (folioEl) folioEl.textContent = factura.folio || 'S/F';
+    if (uuidEl) uuidEl.textContent = uuid;
+    if (motivoEl) motivoEl.value = '';
+    if (sustInput) sustInput.value = '';
+    if (apiError) {
+        apiError.textContent = '';
+        apiError.classList.remove('visible');
+    }
+    if (acuseWrap) acuseWrap.style.display = 'none';
+    ocultarErrorUuidSustitucion();
+    alternarCampoUuidSustitucionCancelacion('');
+
+    modal.style.display = 'flex';
+    document.querySelectorAll('.dropdown.active').forEach(d => d.classList.remove('active'));
+}
+
+function cerrarModalCancelarFactura() {
+    const modal = document.getElementById('cancelar-factura-modal');
+    if (modal) modal.style.display = 'none';
+    cancelacionFacturaUuidActivo = null;
+    const btn = document.getElementById('btn-confirmar-cancelar-factura');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-ban"></i> Cancelar factura';
     }
 }
+
+function alternarCampoUuidSustitucionCancelacion(motivo) {
+    const wrap = document.getElementById('cancelar-factura-uuid-sust-wrap');
+    const input = document.getElementById('cancelar-factura-uuid-sustitucion');
+    if (!wrap || !input) return;
+
+    if (motivo === '01') {
+        wrap.style.display = 'block';
+        input.required = true;
+    } else {
+        wrap.style.display = 'none';
+        input.required = false;
+        input.value = '';
+        ocultarErrorUuidSustitucion();
+    }
+}
+
+function mostrarErrorUuidSustitucion() {
+    const err = document.getElementById('cancelar-factura-uuid-sust-error');
+    if (err) err.classList.add('visible');
+    const input = document.getElementById('cancelar-factura-uuid-sustitucion');
+    if (input) input.style.borderColor = '#d32f2f';
+}
+
+function ocultarErrorUuidSustitucion() {
+    const err = document.getElementById('cancelar-factura-uuid-sust-error');
+    if (err) err.classList.remove('visible');
+    const input = document.getElementById('cancelar-factura-uuid-sustitucion');
+    if (input) input.style.borderColor = '#e3e8ef';
+}
+
+function mostrarErrorApiCancelacion(mensaje) {
+    const apiError = document.getElementById('cancelar-factura-api-error');
+    if (!apiError) return;
+    apiError.textContent = mensaje || 'No se pudo cancelar la factura';
+    apiError.classList.add('visible');
+}
+
+function interpretarEstadoRespuestaCancelacion(result) {
+    const raw = (
+        result?.data?.status
+        || result?.data?.estado
+        || result?.status
+        || ''
+    ).toString().toLowerCase();
+
+    if (/cancel/.test(raw)) {
+        return { badgeClass: 'badge-cancelado', texto: 'CANCELADO', ambiguo: false };
+    }
+    if (/proceso|pending|pendiente/.test(raw)) {
+        return { badgeClass: 'badge-pendiente', texto: 'CANCELACIÓN EN PROCESO', ambiguo: false };
+    }
+    return { badgeClass: 'badge-warning', texto: 'VERIFICA EN SAT', ambiguo: true };
+}
+
+function actualizarBadgeFacturaEnHistorial(uuid, result) {
+    const estado = interpretarEstadoRespuestaCancelacion(result);
+    const row = document.querySelector(`tr[data-factura-uuid="${uuid}"]`);
+    if (!row) return estado;
+
+    const badge = row.querySelector('td .badge');
+    if (badge) {
+        badge.className = `badge ${estado.badgeClass}`;
+        badge.textContent = estado.texto;
+    }
+
+    const facturaLocal = facturas.find(f => f.uuid === uuid);
+    if (facturaLocal) {
+        facturaLocal.estado = estado.texto === 'CANCELACIÓN EN PROCESO' ? 'PENDIENTE' : 'CANCELADA';
+    }
+    const facturaCompleta = facturasCompletas.find(f => f.uuid === uuid);
+    if (facturaCompleta) {
+        facturaCompleta.estado = facturaLocal?.estado || 'CANCELADA';
+    }
+
+    return estado;
+}
+
+function extraerUrlAcuseCancelacion(result) {
+    return result?.data?.acuseUrl
+        || result?.data?.acuse_url
+        || result?.data?.acuse
+        || result?.acuseUrl
+        || null;
+}
+
+function validarFormularioCancelacionFactura() {
+    const motivo = document.getElementById('cancelar-factura-motivo')?.value?.trim();
+    const apiError = document.getElementById('cancelar-factura-api-error');
+    if (apiError) {
+        apiError.textContent = '';
+        apiError.classList.remove('visible');
+    }
+
+    if (!motivo) {
+        mostrarErrorApiCancelacion('Selecciona el motivo de cancelación.');
+        return null;
+    }
+
+    let uuidSustitucion;
+    if (motivo === '01') {
+        uuidSustitucion = document.getElementById('cancelar-factura-uuid-sustitucion')?.value?.trim() || '';
+        if (!uuidSustitucion) {
+            mostrarErrorUuidSustitucion();
+            mostrarErrorApiCancelacion('El UUID de factura sustitución es obligatorio para el motivo 01.');
+            return null;
+        }
+        if (!REGEX_UUID_SAT.test(uuidSustitucion)) {
+            mostrarErrorUuidSustitucion();
+            return null;
+        }
+        ocultarErrorUuidSustitucion();
+    } else {
+        ocultarErrorUuidSustitucion();
+    }
+
+    return { motivo, uuidSustitucion };
+}
+
+async function enviarCancelacionFactura(event) {
+    event.preventDefault();
+    const uuid = cancelacionFacturaUuidActivo;
+    if (!uuid) return;
+
+    const datos = validarFormularioCancelacionFactura();
+    if (!datos) return;
+
+    const btn = document.getElementById('btn-confirmar-cancelar-factura');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Cancelando...';
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const payload = { motivo: datos.motivo };
+        if (datos.motivo === '01' && datos.uuidSustitucion) {
+            payload.uuidSustitucion = datos.uuidSustitucion;
+        }
+
+        const response = await fetch(`/api/facturas/${uuid}/cancelar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            mostrarErrorApiCancelacion(result.error || result.message || 'No se pudo cancelar la factura');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-ban"></i> Cancelar factura';
+            }
+            return;
+        }
+
+        cerrarModalCancelarFactura();
+        const estadoUi = actualizarBadgeFacturaEnHistorial(uuid, result);
+
+        const acuseUrl = extraerUrlAcuseCancelacion(result);
+        let mensajeHtml = 'Factura cancelada. Obtén tu acuse de cancelación.';
+        if (estadoUi.ambiguo) {
+            mensajeHtml += '<br><small>Verifica el estatus en el SAT.</small>';
+        }
+        if (acuseUrl) {
+            mensajeHtml += `<br><a href="${acuseUrl}" target="_blank" rel="noopener noreferrer" style="color:#2979ff;font-weight:600;">Descargar acuse de cancelación</a>`;
+        }
+
+        if (window.Swal) {
+            Swal.fire({
+                icon: 'success',
+                title: estadoUi.texto === 'CANCELACIÓN EN PROCESO' ? 'Cancelación en proceso' : 'Factura cancelada',
+                html: mensajeHtml,
+                confirmButtonColor: '#2979ff'
+            });
+        }
+    } catch (error) {
+        console.error('Error en enviarCancelacionFactura:', error);
+        mostrarErrorApiCancelacion('Ocurrió un error al procesar la cancelación.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-ban"></i> Cancelar factura';
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const motivoSelect = document.getElementById('cancelar-factura-motivo');
+    if (motivoSelect) {
+        motivoSelect.addEventListener('change', (e) => {
+            alternarCampoUuidSustitucionCancelacion(e.target.value);
+        });
+    }
+
+    const sustInput = document.getElementById('cancelar-factura-uuid-sustitucion');
+    if (sustInput) {
+        sustInput.addEventListener('input', () => {
+            if (REGEX_UUID_SAT.test(sustInput.value.trim())) {
+                ocultarErrorUuidSustitucion();
+            }
+        });
+    }
+
+    const modal = document.getElementById('cancelar-factura-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) cerrarModalCancelarFactura();
+        });
+    }
+});
 
 // Función para ver factura
 function verFactura(uuid) {
@@ -2936,6 +3185,327 @@ async function mostrarVistaPrevia() {
     }
 }
 
+function obtenerDatosTimbradoForm() {
+    const getVal = (idBase) => {
+        let el = document.getElementById(`timb-cliente-${idBase}`);
+        const modal = document.getElementById('nueva-factura-modal');
+        const modalOpen = modal && modal.style.display !== 'none';
+        if (modalOpen) {
+            const modalEl = document.getElementById(`modal-cliente-${idBase}`);
+            if (modalEl) el = modalEl;
+        }
+        if (!el && idBase === 'rfc') el = document.getElementById('timb-cliente-rfc') || document.getElementById('modal-cliente-rfc');
+        if (!el && idBase === 'nombre') el = document.getElementById('timb-cliente-nombre');
+        if (!el) return null;
+        return el.tagName === 'INPUT' || el.tagName === 'SELECT' ? el.value : el.textContent;
+    };
+
+    const rfc = getVal('rfc');
+    const formaPago = document.getElementById('timb-forma-pago')?.value;
+    const ref = document.getElementById('timb-pago-referencia')?.value || '';
+    let obs = document.getElementById('timb-observacion')?.value || '';
+    if (ref) obs = (obs ? obs + ' ' : '') + 'Ref: ' + ref;
+
+    let nombreReceptor = document.getElementById('timb-cliente-nombre')?.textContent;
+    const modalInputNombre = document.getElementById('modal-cliente-nombre-input');
+    const modal = document.getElementById('nueva-factura-modal');
+    if (modal && modal.style.display !== 'none' && modalInputNombre?.value) {
+        nombreReceptor = modalInputNombre.value;
+    }
+
+    const rows = document.querySelectorAll('#products-tbody tr');
+    return {
+        rfc,
+        receptor: {
+            id_cliente: getVal('id') || null,
+            rfc: rfc ? rfc.trim().toUpperCase() : '',
+            nombre: nombreReceptor || 'RECEPTOR DESCONOCIDO',
+            regimenFiscal: getVal('regimen') || '616',
+            codigoPostal: getVal('cp') || '00000',
+            usoCfdi: getVal('uso') || 'G03',
+            colonia: getVal('colonia') || '',
+            localidad: getVal('localidad') || '',
+            municipio: getVal('municipio') || '',
+            estado: getVal('estado') || '',
+            pais: getVal('pais') || '',
+            direccion: document.getElementById('timb-cliente-direccion')?.textContent || '-'
+        },
+        factura: {
+            tipo: document.getElementById('timb-tipo-comprobante')?.value,
+            serie: document.getElementById('timb-serie')?.value,
+            moneda: document.getElementById('timb-moneda')?.value,
+            tipoCambio: parseFloat(document.getElementById('timb-tc')?.value) || 1,
+            formaPago: formaPago,
+            metodoPago: document.getElementById('timb-metodo-pago')?.value || 'PUE',
+            observaciones: obs,
+            notas_internas: document.getElementById('timb-notas-internas')?.value || '',
+            cotizacion_id: document.getElementById('timb-cotizacion-id')?.value || null,
+            cotizacion_numero: document.getElementById('timb-cotizacion-numero')?.value || null,
+            hayDescuentos: hayDescuentos,
+            id_factura_borrador: document.getElementById('timb-borrador-id')?.value || null
+        },
+        conceptos: Array.from(rows).map((row) => {
+            const cantidad = parseFloat(row.querySelector('.cantidad').value);
+            const valorUnitario = parseFloat(row.querySelector('.p-unitario').value);
+            const descuento = parseFloat(row.querySelector('.descuento').value) || 0;
+            const concepto = {
+                claveProductoServicio: row.querySelector('.clave-sat').value,
+                cantidad,
+                claveUnidad: row.querySelector('.clave-unidad').value,
+                descripcion: row.querySelector('.descripcion').value,
+                valorUnitario,
+                descuento,
+                peso: parseFloat(row.querySelector('.peso-unitario')?.value || 0),
+                caracteristicas: row.querySelector('.caracteristicas')?.value || '',
+                objetoImp: aplicaIvaFiscal ? '02' : '01'
+            };
+            if (aplicaIvaFiscal) {
+                const importe = (cantidad * valorUnitario) - descuento;
+                concepto.impuestos = {
+                    Traslados: [{
+                        Base: Number(importe.toFixed(2)),
+                        Impuesto: '002',
+                        TipoFactor: 'Tasa',
+                        TasaOCuota: 0.16,
+                        Importe: Number((importe * 0.16).toFixed(2))
+                    }]
+                };
+            }
+            return concepto;
+        }),
+        aplicaIva: document.getElementById('timb-aplica-iva')?.checked !== false,
+        CfdiRelacionados: typeof window.getFacturasRelacionadas === 'function' ? window.getFacturasRelacionadas() : null
+    };
+}
+
+function aplicarPayloadBorradorEnFormulario(payload) {
+    if (!payload) return;
+    const { receptor, factura, conceptos, aplicaIva } = payload;
+
+    if (receptor) {
+        const setHidden = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val || '';
+        };
+        setHidden('timb-cliente-id', receptor.id_cliente);
+        setHidden('timb-cliente-rfc', receptor.rfc);
+        setHidden('timb-cliente-cp', receptor.codigoPostal);
+        setHidden('timb-cliente-regimen', receptor.regimenFiscal);
+        setHidden('timb-cliente-uso', receptor.usoCfdi);
+        setHidden('timb-cliente-colonia', receptor.colonia);
+        setHidden('timb-cliente-localidad', receptor.localidad);
+        setHidden('timb-cliente-municipio', receptor.municipio);
+        setHidden('timb-cliente-estado', receptor.estado);
+        setHidden('timb-cliente-pais', receptor.pais);
+        const nombreEl = document.getElementById('timb-cliente-nombre');
+        if (nombreEl) nombreEl.textContent = receptor.nombre || 'Cliente';
+        const dirEl = document.getElementById('timb-cliente-direccion');
+        if (dirEl) dirEl.textContent = receptor.direccion || '-';
+        if (typeof actualizarVistaCliente === 'function') actualizarVistaCliente();
+    }
+
+    if (factura) {
+        const mapIds = {
+            'timb-tipo-comprobante': factura.tipo,
+            'timb-serie': factura.serie,
+            'timb-moneda': factura.moneda,
+            'timb-tc': factura.tipoCambio,
+            'timb-metodo-pago': factura.metodoPago,
+            'timb-forma-pago': factura.formaPago,
+            'timb-observacion': factura.observaciones,
+            'timb-notas-internas': factura.notas_internas,
+            'timb-cotizacion-id': factura.cotizacion_id,
+            'timb-cotizacion-numero': factura.cotizacion_numero
+        };
+        Object.entries(mapIds).forEach(([id, val]) => {
+            const el = document.getElementById(id);
+            if (el && val != null) el.value = val;
+        });
+    }
+
+    if (typeof aplicaIva === 'boolean') {
+        aplicaIvaFiscal = aplicaIva;
+        const chk = document.getElementById('timb-aplica-iva');
+        if (chk) chk.checked = aplicaIva;
+    }
+
+    const tbody = document.getElementById('products-tbody');
+    if (tbody) {
+        tbody.innerHTML = '';
+        (conceptos || []).forEach((c) => agregarFilaConcepto(c));
+        actualizarTotalesTimbrado();
+    }
+}
+
+async function cargarBorradoresTimbrado() {
+    const contenedor = document.getElementById('timb-borradores-list');
+    if (!contenedor) return;
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch('/api/facturas/borradores', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await resp.json();
+        if (!resp.ok || !json.success) {
+            contenedor.innerHTML = '<span style="color:#b45309;">No se pudieron cargar los borradores.</span>';
+            return;
+        }
+        const lista = Array.isArray(json.data) ? json.data : [];
+        if (!lista.length) {
+            contenedor.innerHTML = '<span style="color:#a16207;">Sin borradores guardados.</span>';
+            return;
+        }
+        contenedor.innerHTML = lista.map((b) => `
+            <button type="button" class="timb-borrador-chip" data-id="${b.id_factura}"
+                style="border:1px solid #fcd34d; background:#fff; border-radius:8px; padding:8px 12px; cursor:pointer; text-align:left;">
+                <strong style="color:#92400e;">${b.folio || 'Borrador'}</strong>
+                <span style="display:block; color:#78350f; font-size:0.8rem;">${b.cliente_nombre || 'Cliente'} · $${Number(b.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+            </button>
+        `).join('');
+        contenedor.querySelectorAll('.timb-borrador-chip').forEach((btn) => {
+            btn.addEventListener('click', () => continuarBorradorFactura(btn.dataset.id));
+        });
+    } catch (e) {
+        console.error('Error cargando borradores:', e);
+        contenedor.innerHTML = '<span style="color:#b45309;">Error al cargar borradores.</span>';
+    }
+}
+
+async function continuarBorradorFactura(idFactura) {
+    if (!idFactura) return;
+    try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/facturas/borrador/${idFactura}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await resp.json();
+        if (!resp.ok || !json.success) {
+            throw new Error(json.error || 'No se pudo cargar el borrador');
+        }
+        document.querySelector('.tab-btn[data-section="timbrado"]')?.click();
+        const borradorInput = document.getElementById('timb-borrador-id');
+        if (borradorInput) borradorInput.value = String(json.data.id_factura);
+        aplicarPayloadBorradorEnFormulario(json.data.payload);
+        Swal.fire({ icon: 'info', title: 'Borrador cargado', text: 'Revisa los datos y timbra cuando estés listo.', timer: 2000, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+}
+
+async function procesarGuardarBorrador() {
+    const datos = obtenerDatosTimbradoForm();
+    if (!datos.rfc) {
+        Swal.fire('Error', 'Selecciona un cliente antes de guardar el borrador.', 'warning');
+        return;
+    }
+    if (!datos.conceptos.length) {
+        Swal.fire('Error', 'Agrega al menos un concepto al borrador.', 'warning');
+        return;
+    }
+
+    const borradorId = document.getElementById('timb-borrador-id')?.value;
+    const body = {
+        receptor: datos.receptor,
+        factura: datos.factura,
+        conceptos: datos.conceptos,
+        aplicaIva: datos.aplicaIva,
+        CfdiRelacionados: datos.CfdiRelacionados
+    };
+    if (borradorId) body.id_factura = Number(borradorId);
+
+    try {
+        Swal.fire({ title: 'Guardando borrador...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const token = localStorage.getItem('token');
+        const resp = await fetch('/api/facturas/borrador', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(body)
+        });
+        const json = await resp.json();
+        Swal.close();
+        if (!resp.ok || !json.success) {
+            throw new Error(json.error || 'No se pudo guardar el borrador');
+        }
+        const borradorInput = document.getElementById('timb-borrador-id');
+        if (borradorInput) borradorInput.value = String(json.data.id_factura);
+        await cargarBorradoresTimbrado();
+        cargarFacturas();
+        Swal.fire({ icon: 'success', title: 'Borrador guardado', timer: 1400, showConfirmButton: false });
+    } catch (e) {
+        Swal.fire('Error', e.message, 'error');
+    }
+}
+
+async function procesarVistaPreviaPDF() {
+    const datos = obtenerDatosTimbradoForm();
+    if (!datos.rfc) {
+        Swal.fire('Error', 'Selecciona un cliente antes de generar la vista previa.', 'warning');
+        return;
+    }
+    if (!datos.conceptos.length) {
+        Swal.fire('Error', 'Agrega al menos un concepto para generar la vista previa.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btn-vista-previa-pdf');
+    const originalHtml = btn?.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'GENERANDO... <i class="fa fa-spinner fa-spin"></i>';
+    }
+
+    try {
+        Swal.fire({ title: 'Generando vista previa...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/facturas/vista-previa', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                receptor: datos.receptor,
+                factura: datos.factura,
+                conceptos: datos.conceptos,
+                aplicaIva: datos.aplicaIva,
+                CfdiRelacionados: datos.CfdiRelacionados
+            })
+        });
+
+        if (!response.ok) {
+            const errorPayload = await response.json().catch(() => ({}));
+            throw new Error(errorPayload.error || 'No se pudo generar la vista previa.');
+        }
+
+        const blob = await response.blob();
+        const pdfUrl = window.URL.createObjectURL(blob);
+        const previewWindow = window.open(pdfUrl, '_blank');
+        if (!previewWindow) {
+            const a = document.createElement('a');
+            a.href = pdfUrl;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        setTimeout(() => window.URL.revokeObjectURL(pdfUrl), 60000);
+        Swal.close();
+    } catch (e) {
+        Swal.fire('Error', e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+}
+
+window.procesarGuardarBorrador = procesarGuardarBorrador;
+window.procesarVistaPreviaPDF = procesarVistaPreviaPDF;
+window.cargarBorradoresTimbrado = cargarBorradoresTimbrado;
+window.continuarBorradorFactura = continuarBorradorFactura;
+
 async function procesarTimbrado() {
     const rows = document.querySelectorAll('#products-tbody tr');
     if (rows.length === 0) {
@@ -3057,29 +3627,45 @@ async function procesarTimbrado() {
         })
     };
 
+    const token = localStorage.getItem('token');
+
     // Regla de credito: en PPD la forma de pago debe enviarse como 99 (Por definir).
     if (String(facturaData.factura.metodoPago || '').toUpperCase() === 'PPD') {
         facturaData.factura.formaPago = '99';
-        // Validar disponibilidad de crédito antes de timbrar (solo si tenemos id_cliente)
+        // Validar crédito activo antes de timbrar (solo si tenemos id_cliente).
+        // Si ya tiene deuda/saldo vigente, no permitir otro PPD para evitar ciclos confusos.
         if (facturaData.receptor.id_cliente) {
-            const totalCalc = facturaData.conceptos.reduce((s, c) => s + ((c.cantidad || 0) * (c.valorUnitario || 0) - (c.descuento || 0)), 0);
             try {
                 const resp2 = await fetch(`/api/clientes/credito/${facturaData.receptor.id_cliente}/detalle`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const json2 = await resp2.json();
                 if (resp2.ok && json2.success) {
-                    const disponible = Number(json2.data.creditoDisponible || 0);
-                    if (disponible < totalCalc) {
-                        mostrarMensaje(`Crédito insuficiente: disponible ${disponible.toFixed(2)}, total factura ${totalCalc.toFixed(2)}`, 'error');
+                    const deudaActiva = Number(json2.data.deuda || 0);
+                    const hayCreditosAbiertos = Array.isArray(json2.data.creditos)
+                        && json2.data.creditos.some(c => Number(c.saldo || 0) > 0.009);
+
+                    if (deudaActiva > 0.009 || hayCreditosAbiertos) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Cliente con crédito activo',
+                            text: `El cliente ya tiene un crédito vigente por $${deudaActiva.toFixed(2)}. Para esta factura selecciona método de pago PUE o liquida primero el crédito actual.`,
+                            confirmButtonText: 'Entendido'
+                        });
                         return;
                     }
                 }
             } catch (e) {
-                console.warn('Error comprobando crédito:', e);
+                console.warn('[FACTURACION] Error comprobando crédito activo:', e);
                 // no bloquear, ya validamos en el servidor
             }
         }
+    }
+
+    const borradorIdActivo = document.getElementById('timb-borrador-id')?.value;
+    if (borradorIdActivo) {
+        facturaData.id_factura_borrador = Number(borradorIdActivo);
+        facturaData.factura.id_factura_borrador = Number(borradorIdActivo);
     }
 
     // -> nota de crédito: anexar campos y validar
@@ -3121,7 +3707,6 @@ async function procesarTimbrado() {
 
         Swal.fire({ title: 'Procesando Timbrado...', didOpen: () => { Swal.showLoading(); } });
 
-        const token = localStorage.getItem('token');
         const response = await fetch('/api/facturas/timbrar', {
             method: 'POST',
             headers: {
@@ -3143,6 +3728,10 @@ async function procesarTimbrado() {
                 showConfirmButton: false
             });
 
+            const borradorInput = document.getElementById('timb-borrador-id');
+            if (borradorInput) borradorInput.value = '';
+            if (typeof cargarBorradoresTimbrado === 'function') cargarBorradoresTimbrado();
+
             cargarFacturas(); // Recargar lista
 
             // Abrir modal de envío por correo (includes PDF preview)
@@ -3160,6 +3749,15 @@ async function procesarTimbrado() {
             }, 1000);
 
         } else {
+            if (response.status === 400 && res?.code === 'CLIENTE_CON_CREDITO_ACTIVO') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No se permite otro crédito',
+                    text: res.error || 'El cliente ya tiene un crédito activo. Cambia el método de pago a PUE.',
+                    confirmButtonText: 'Cambiar a PUE'
+                });
+                return;
+            }
             Swal.fire('Error SAT', res.error || 'Ocurrió un error al procesar la factura', 'error');
         }
     } catch (error) {
@@ -3244,8 +3842,84 @@ async function guardarClienteRapido() {
     }
 }
 
+const TIMB_PILL_CLIENTE_BASE_STYLE = 'border-radius:20px;padding:4px 12px;font-size:0.8rem;cursor:pointer;border:1px solid #cbd5e1;background:#fff;color:#475569;';
+const TIMB_PILL_CLIENTE_SELECTED_STYLE = 'border-radius:20px;padding:4px 12px;font-size:0.8rem;cursor:pointer;border:1px solid #2979ff;background:#2979ff;color:#fff;';
+
+const CLIENTE_FRECUENTE_PRESETS = {
+    xaxx: {
+        rfc: 'XAXX010101000',
+        nombre: '"PUBLICO EN GENERAL"',
+        cp: '88730',
+        regimen: '616',
+        regimenLabel: 'Sin obligaciones fiscales',
+        uso: 'S01'
+    },
+    xexx: {
+        rfc: 'XEXX010101000',
+        nombre: '"EXTRANJERO"',
+        cp: '88730',
+        regimen: '616',
+        regimenLabel: 'Sin obligaciones fiscales',
+        uso: 'S01'
+    }
+};
+
+function obtenerCpEmisorTimbrado() {
+    const cp = document.getElementById('emisor-cp')?.value?.trim();
+    return cp || '00000';
+}
+
+function limpiarClienteFrecuente() {
+    document.querySelectorAll('.timb-pill-cliente-frecuente').forEach((pill) => {
+        pill.style.cssText = TIMB_PILL_CLIENTE_BASE_STYLE;
+    });
+}
+
+function seleccionarPillClienteFrecuente(pillEl) {
+    document.querySelectorAll('.timb-pill-cliente-frecuente').forEach((pill) => {
+        pill.style.cssText = pill === pillEl ? TIMB_PILL_CLIENTE_SELECTED_STYLE : TIMB_PILL_CLIENTE_BASE_STYLE;
+    });
+}
+
+function aplicarPresetClienteFrecuente(presetKey) {
+    const preset = CLIENTE_FRECUENTE_PRESETS[presetKey];
+    if (!preset) return;
+
+    const nombreField = document.getElementById('timb-cliente-nombre');
+    const direccionField = document.getElementById('timb-cliente-direccion');
+
+    if (nombreField) {
+        nombreField.textContent = preset.nombre;
+        nombreField.style.color = '#1e293b';
+    }
+    if (direccionField) direccionField.textContent = '-';
+
+    document.getElementById('timb-cliente-rfc').value = preset.rfc;
+    document.getElementById('timb-cliente-cp').value = preset.cp;
+    document.getElementById('timb-cliente-regimen').value = preset.regimen;
+    document.getElementById('timb-cliente-uso').value = preset.uso;
+    document.getElementById('timb-cliente-id').value = '';
+    document.getElementById('timb-cliente-colonia').value = '';
+    document.getElementById('timb-cliente-localidad').value = '';
+    document.getElementById('timb-cliente-municipio').value = '';
+    document.getElementById('timb-cliente-estado').value = '';
+    document.getElementById('timb-cliente-pais').value = '';
+
+    const rfcDisplay = document.getElementById('timb-cliente-rfc-display');
+    const regimenDisplay = document.getElementById('timb-cliente-regimen-display');
+    if (rfcDisplay) rfcDisplay.textContent = preset.rfc;
+    if (regimenDisplay) regimenDisplay.textContent = preset.regimenLabel;
+}
+
+function seleccionarClienteFrecuente(presetKey, pillEl) {
+    seleccionarPillClienteFrecuente(pillEl);
+    if (presetKey === 'otro') return;
+    aplicarPresetClienteFrecuente(presetKey);
+}
+
 // Función para abrir buscador de cliente (cambiar cliente en timbrado)
 function abrirBuscadorCambiarCliente() {
+    limpiarClienteFrecuente();
     // Crear HTML del modal con búsqueda en tiempo real
     const html = `
         <div style="text-align: left;">

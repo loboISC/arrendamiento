@@ -79,6 +79,42 @@
       color: #2e7d32;
     }
 
+    .badge-warning {
+      background: #fff8e1;
+      color: #f57f17;
+    }
+
+    .badge-danger {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    #cancelar-factura-modal .field-error {
+      color: #c62828;
+      font-size: 0.85rem;
+      margin-top: 4px;
+      display: none;
+    }
+
+    #cancelar-factura-modal .field-error.visible {
+      display: block;
+    }
+
+    #cancelar-factura-modal .modal-alert-error {
+      display: none;
+      background: #ffebee;
+      color: #b71c1c;
+      border: 1px solid #ef9a9a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    #cancelar-factura-modal .modal-alert-error.visible {
+      display: block;
+    }
+
     /* Estilos para el dropdown de acciones */
     .dropdown {
       position: relative;
@@ -355,10 +391,10 @@
         </div>
       </div>
       <div class="topbar-right" style="display: flex; align-items: center; gap: 24px;">
-        <div class="notifications" style="position: relative; cursor: pointer;">
+        <div class="notifications" id="notif-bell" style="position: relative; cursor: pointer;">
           <i class="fa fa-bell" style="font-size: 1.2rem; color: #64748b;"></i>
-          <span class="notif-dot"
-            style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff;"></span>
+          <span class="notif-dot" id="notif-dot"
+            style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff; display: none;"></span>
         </div>
         <div id="user-menu" style="position: relative; cursor: pointer;">
           <div style="display: flex; align-items: center; gap: 12px;"
@@ -575,18 +611,22 @@
     <!-- SECTION: Facturas -->
     <section id="facturas-section" class="content-section">
       <div class="filters-row"><input type="text" id="search-facturas"
-          placeholder="Buscar folio, cliente o UUID..." /><select id="filter-estado">
+          placeholder="Buscar folio, cliente o UUID..." />        <select id="filter-estado">
           <option>Estado: Todos</option>
-          <option>Pagada</option>
-          <option>Pendiente</option>
-          <option>Vencida</option>
+          <option>BORRADOR</option>
+          <option>TIMBRANDO</option>
+          <option>TIMBRADA</option>
+          <option>APLICADA</option>
+          <option>PARCIAL</option>
+          <option>CANCELADA</option>
+          <option>ERROR</option>
         </select><input type="date" id="filter-date-start" placeholder="01/10/2023" /><span
           style="margin:0 8px;">-</span><input type="date" id="filter-date-end" placeholder="31/10/2023" /><select
           id="filter-cliente">
           <option>Cliente: Todos</option>
         </select>
         <div style="flex:1"></div><button class="btn-secondary"><i class="fa fa-eraser"></i>Limpiar</button><button
-          class="btn-primary"><i class="fa fa-filter"></i>Aplicar</button><button class="btn-secondary"><i
+          class="btn-primary"><i class="fa fa-filter"></i>Aplicar</button><button class="btn-secondary" id="btn-descargar-reporte"><i
             class="fa fa-download"></i></button>
       </div>
       <table class="facturas-table">
@@ -599,86 +639,13 @@
             <th>CLIENTE / RFC</th>
             <th>EMISIÓN</th>
             <th>MÉTODO</th>
+            <th>RESPONSABLE</th>
             <th>MONTO TOTAL</th>
             <th class="text-right"></th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td><input type="checkbox" /></td>
-            <td><span class="badge timbrado">TIMBRADO</span></td>
-            <td><strong>A-00152</strong></td>
-            <td>
-              <div class="uuid-cell"><span class="uuid-short">8782...AA5D</span><i class="fa fa-copy copy-icon"></i>
-              </div>
-            </td>
-            <td>
-              <div class="client-badge">CA</div>
-              <div class="client-info"><strong>Construcciones Alfa S.A. de C.V.</strong><span
-                  class="rfc">CIA-071854-A2</span></div>
-            </td>
-            <td>25 Oct 2023</td>
-            <td><span class="badge-method pue">PUE</span></td>
-            <td class="amount">$45,
-              200.00<br><span class="tax">MXN</span></td>
-            <td class="actions"><button class="action-btn"><i class="fa fa-ellipsis-v"></i></button></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" /></td>
-            <td><span class="badge pendiente-ppd">PENDIENTE PPD</span></td>
-            <td><strong>A-00151</strong></td>
-            <td>
-              <div class="uuid-cell"><span class="uuid-short">F232...6C21</span><i class="fa fa-copy copy-icon"></i>
-              </div>
-            </td>
-            <td>
-              <div class="client-badge">IC</div>
-              <div class="client-info"><strong>Ingeniería Civil Moderna</strong><span class="rfc">CICI2304PL8</span>
-              </div>
-            </td>
-            <td>24 Oct 2023</td>
-            <td><span class="badge-method ppd">PPD</span></td>
-            <td class="amount warning">$128,
-              450.00<br><span class="tax">MXN</span></td>
-            <td class="actions"><button class="action-btn"><i class="fa fa-ellipsis-v"></i></button></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" /></td>
-            <td><span class="badge cancelado">CANCELADO</span></td>
-            <td><strong>A-00150</strong></td>
-            <td>
-              <div class="uuid-cell"><span class="uuid-short">D196...77E2</span><i class="fa fa-copy copy-icon"></i>
-              </div>
-            </td>
-            <td>
-              <div class="client-badge">RT</div>
-              <div class="client-info"><strong>Rascacielos Torres S.A.</strong><span class="rfc">RTS8901N1A6</span>
-              </div>
-            </td>
-            <td>22 Oct 2023</td>
-            <td><span class="badge-method pue">PUE</span></td>
-            <td class="amount">$12,
-              000.00<br><span class="tax">MXN</span></td>
-            <td class="actions"><button class="action-btn"><i class="fa fa-ellipsis-v"></i></button></td>
-          </tr>
-          <tr>
-            <td><input type="checkbox" /></td>
-            <td><span class="badge borrador">BORRADOR</span></td>
-            <td><strong>B-00042</strong></td>
-            <td>
-              <div class="uuid-cell"><span class="no-uuid">No timbrado</span></div>
-            </td>
-            <td>
-              <div class="client-badge">GZ</div>
-              <div class="client-info"><strong>Grupo Zapata S. de R.L.</strong><span class="rfc">GZAR0101L4</span>
-              </div>
-            </td>
-            <td>26 Oct 2023</td>
-            <td><span class="badge-method pue">PUE</span></td>
-            <td class="amount">$8,
-              900.00<br><span class="tax">MXN</span></td>
-            <td class="actions"><button class="action-btn"><i class="fa fa-ellipsis-v"></i></button></td>
-          </tr>
+          <!-- Filas cargadas dinámicamente desde facturacion.js -->
         </tbody>
       </table>
       <div class="table-footer"><span>Mostrando 1-10 de 152 facturas encontradas</span>
@@ -691,6 +658,20 @@
     </section>
     <!-- SECTION: Timbrado -->
     <section id="timbrado-section" class="content-section">
+      <div id="timb-borradores-panel" style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px 16px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h4 style="margin:0; font-size:0.95rem; color:#92400e; font-weight:700;">
+            <i class="fa fa-file-pen" style="margin-right:8px;"></i>Borradores pendientes de timbrar
+          </h4>
+          <button type="button" class="btn-secondary" onclick="cargarBorradoresTimbrado()" style="font-size:0.8rem; padding:4px 10px;">
+            <i class="fa fa-rotate"></i> Actualizar
+          </button>
+        </div>
+        <div id="timb-borradores-list" style="display:flex; flex-wrap:wrap; gap:8px; font-size:0.85rem; color:#78350f;">
+          <span style="color:#a16207;">Sin borradores guardados.</span>
+        </div>
+      </div>
+      <input type="hidden" id="timb-borrador-id" value="" />
       <!-- 0. Datos del Emisor (Nuevo) -->
       <div style="background:#f1f5f9; border-radius:12px; padding:16px; margin-bottom:20px; border:1px solid #e2e8f0;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -729,6 +710,19 @@
             </button>
             <button class="btn-header-add" onclick="abrirModalAgregarConcepto()" style="padding:6px 12px; font-size:0.85rem;"><i class="fa fa-plus-circle"></i>AGREGAR</button>
           </div>
+        </div>
+        <!-- Cliente Frecuente Selector Row -->
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap; border-bottom:1px dashed #e2e8f0; padding-bottom:12px;">
+          <span style="font-size:0.8rem; font-weight:600; color:#475569;">Cliente Frecuente:</span>
+          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('xaxx', this)" style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
+            Público en General (XAXX)
+          </button>
+          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('xexx', this)" style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
+            Extranjero (XEXX)
+          </button>
+          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('otro', this)" style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
+            Otro (manual)
+          </button>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div style="flex:1;">
@@ -897,6 +891,62 @@
           <div class="field-group"><label>Notas Internas:</label><textarea id="timb-notas-internas"
               class="timb-input" placeholder="Notas que aparecerán arriba en el PDF..." rows="3"></textarea></div>
         </div>
+        <div class="grid-col-full">
+          <div class="fr-card">
+            <label class="fr-toggle-label" for="fr-enable">
+              <input type="checkbox" id="fr-enable">
+              Facturas Relacionadas
+            </label>
+            <div class="fr-panel" id="fr-panel" aria-hidden="true">
+              <div class="fr-fields-grid">
+                <div class="fr-field-group">
+                  <label for="fr-tipo-relacion">Tipo de Relación</label>
+                  <select id="fr-tipo-relacion">
+                    <option value="">Selecciona...</option>
+                    <option value="01">01 Nota de crédito de los documentos relacionados</option>
+                    <option value="02">02 Nota de débito de los documentos relacionados</option>
+                    <option value="03">03 Devolución de mercancía sobre facturas o traslados previos</option>
+                    <option value="04">04 Sustitución de los CFDI previos</option>
+                    <option value="05">05 Traslados de mercancias facturados previamente</option>
+                    <option value="06">06 Factura generada por los traslados previos</option>
+                    <option value="07">07 CFDI por aplicación de anticipo</option>
+                  </select>
+                  <div class="fr-required-error" id="fr-tipo-error"></div>
+                </div>
+                <div class="fr-field-group">
+                  <label for="fr-uuid-input">UUID relacionado</label>
+                  <div class="fr-uuid-input-row">
+                    <input type="text" id="fr-uuid-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
+                    <button type="button" id="fr-add-uuid" class="fr-add-btn">Agregar</button>
+                  </div>
+                  <div class="fr-uuid-error" id="fr-uuid-error"></div>
+                  <div class="fr-required-error" id="fr-lista-error"></div>
+                </div>
+              </div>
+              <!-- Info banner: visible only for tipo 07 -->
+              <div id="fr-anticipo-banner" style="display:none; background:#e3f2fd; border-left:4px solid #2979ff; border-radius:6px; padding:12px; margin-top:12px; font-size:0.85rem; color:#1565c0; line-height:1.5;">
+                <strong>💡 Relación 07 — CFDI por aplicación de anticipo</strong><br>
+                Adjunta el UUID del CFDI de anticipo. El monto del anticipo se aplicará automáticamente como descuento en el cálculo de esta factura. Asegúrate de que los conceptos reflejen el importe total antes del anticipo.
+              </div>
+              <!-- Pill list: visible for tipos 01–06 -->
+              <div class="fr-uuid-list" id="fr-uuid-list"></div>
+              <!-- Table view: visible only for tipo 07 -->
+              <div id="fr-anticipo-table-wrap" style="display:none; margin-top:12px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                  <thead>
+                    <tr style="border-bottom:2px solid #e3e8ef;">
+                      <th style="text-align:left; padding:8px 10px; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.5px;">Tipo de Relación*</th>
+                      <th style="text-align:left; padding:8px 10px; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.5px;">Folio Fiscal</th>
+                      <th style="width:80px; padding:8px 10px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="fr-anticipo-tbody"></tbody>
+                </table>
+                <div id="fr-anticipo-status" style="display:none; margin-top:8px; padding:10px 12px; border-radius:6px; font-size:0.85rem;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
         <!-- Fila Final: Formato, Correo y Botones -->
         <div class="grid-col-full">
           <div class="footer-grid-row">
@@ -911,8 +961,16 @@
                 <option value="no">NO</option>
               </select></div>
             <div style="flex:1;"></div>
-            <div class="header-action-group"><button id="btn-timbrar" class="btn-header-send" onclick="procesarTimbrado()">TIMBRAR FACTURA <i
-                  class="fa fa-paper-plane"></i></button></div>
+            <div class="header-action-group" style="display:flex; gap:10px; align-items:center;">
+              <button id="btn-vista-previa-pdf" class="btn-header-draft" onclick="procesarVistaPreviaPDF()" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;">
+                VISTA PREVIA PDF <i class="fa fa-file-pdf"></i>
+              </button>
+              <button id="btn-guardar-borrador" class="btn-header-draft" onclick="procesarGuardarBorrador()" style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
+                GUARDAR BORRADOR <i class="fa fa-save"></i>
+              </button>
+              <button id="btn-timbrar" class="btn-header-send" onclick="procesarTimbrado()">TIMBRAR FACTURA <i
+                  class="fa fa-paper-plane"></i></button>
+            </div>
           </div>
         </div>
       </div>
@@ -1093,6 +1151,7 @@
     </script>-->
   <script src="scripts/facturacion/facturas.js"></script>
   <script src="scripts/facturacion/facturacion.js"></script>
+  <script src="scripts/facturacion/reporte-mensual.js"></script>
   
   <!-- Componentes del Módulo de Notas de Crédito -->
   <script src="scripts/facturacion/notas-credito/components/tipo-comprobante-selector.js"></script>
@@ -1106,6 +1165,7 @@
   <script src="scripts/facturacion/notas-credito/components/post-timbrado-modal.js"></script>
   <script src="scripts/facturacion/notas-credito/components/aplicacion-cobranza.js"></script>
   <script src="scripts/facturacion/notas-credito/credit-notes.js"></script>
+  <script src="scripts/notificaciones-widget.js"></script>
   <script> // La autenticación y carga de usuario se maneja automáticamente desde auth.js
 
     // Variable global para el modal de email
@@ -1136,6 +1196,9 @@
           if (targetElement) {
             targetElement.classList.add('active');
             console.log('Sección activada:', targetSection);
+            if (targetSection === 'timbrado' && typeof cargarBorradoresTimbrado === 'function') {
+              cargarBorradoresTimbrado();
+            }
           }
 
           else {
@@ -1181,6 +1244,250 @@
 
     // Validación de conceptos antes de enviar la factura
     const formEmitirFactura = document.getElementById('formEmitirFactura');
+    const frEnable = document.getElementById('fr-enable');
+    const frPanel = document.getElementById('fr-panel');
+    const frTipoRelacion = document.getElementById('fr-tipo-relacion');
+    const frUuidInput = document.getElementById('fr-uuid-input');
+    const frAddUuid = document.getElementById('fr-add-uuid');
+    const frUuidList = document.getElementById('fr-uuid-list');
+    const frUuidError = document.getElementById('fr-uuid-error');
+    const frTipoError = document.getElementById('fr-tipo-error');
+    const frListaError = document.getElementById('fr-lista-error');
+    const frAnticipoBanner = document.getElementById('fr-anticipo-banner');
+    const frAnticipoTableWrap = document.getElementById('fr-anticipo-table-wrap');
+    const frAnticipoTbody = document.getElementById('fr-anticipo-tbody');
+    const frAnticipoStatus = document.getElementById('fr-anticipo-status');
+    const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const frState = { foliosFiscales: [], anticipoMonto: null };
+
+    function clearFrErrors() {
+      frUuidError.textContent = '';
+      frTipoError.textContent = '';
+      frListaError.textContent = '';
+    }
+
+    function isAnticipo() {
+      return frTipoRelacion.value === '07';
+    }
+
+    function updateAnticipoUI() {
+      const anticipo = isAnticipo();
+      frAnticipoBanner.style.display = anticipo ? 'block' : 'none';
+      frAnticipoTableWrap.style.display = anticipo ? 'block' : 'none';
+      frUuidList.style.display = anticipo ? 'none' : '';
+      if (!anticipo) {
+        frAnticipoStatus.style.display = 'none';
+        frAnticipoStatus.textContent = '';
+      }
+    }
+
+    function renderFrUuids() {
+      if (isAnticipo()) {
+        const tipoLabel = frTipoRelacion.options[frTipoRelacion.selectedIndex] ? frTipoRelacion.options[frTipoRelacion.selectedIndex].text : '07 CFDI por aplicación de anticipo';
+        frAnticipoTbody.innerHTML = frState.foliosFiscales.map((uuid, index) => `
+          <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:10px 10px; color:#374151; font-size:0.88rem;">${tipoLabel}</td>
+            <td style="padding:10px 10px; font-family:monospace; font-size:0.85rem; color:#1e293b; word-break:break-all;">${uuid}</td>
+            <td style="padding:10px 10px; text-align:right; white-space:nowrap;">
+              <button type="button" class="fr-anticipo-edit" data-fr-index="${index}" aria-label="Editar UUID"
+                style="background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; width:30px; height:30px; cursor:pointer; margin-right:4px; font-size:0.9rem;" title="Editar">✎</button>
+              <button type="button" class="fr-anticipo-delete" data-fr-index="${index}" aria-label="Eliminar UUID"
+                style="background:#fee2e2; color:#ef4444; border:none; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:0.9rem;" title="Eliminar">🗑</button>
+            </td>
+          </tr>
+        `).join('');
+      } else {
+        frUuidList.innerHTML = frState.foliosFiscales.map((uuid, index) => `
+          <div class="fr-uuid-pill">
+            <span>${uuid}</span>
+            <button type="button" class="fr-remove-uuid" data-fr-index="${index}" aria-label="Eliminar UUID">✕</button>
+          </div>
+        `).join('');
+      }
+    }
+
+    function clearAnticipoDiscount() {
+      const firstDescuento = document.querySelector('#products-tbody .descuento');
+      if (firstDescuento) {
+        firstDescuento.value = '0.00';
+        if (typeof actualizarTotalesTimbrado === 'function') actualizarTotalesTimbrado();
+        // Ocultar columna de descuentos si no hay otros descuentos activos (> 0)
+        const hayOtrosDesc = Array.from(document.querySelectorAll('#products-tbody .descuento'))
+          .some(inp => parseFloat(inp.value) > 0);
+        if (!hayOtrosDesc && typeof mostrarOcultarColumnaDescuentos === 'function') {
+          mostrarOcultarColumnaDescuentos(false);
+        }
+      }
+      frState.anticipoMonto = null;
+      frAnticipoStatus.style.display = 'none';
+      frAnticipoStatus.textContent = '';
+    }
+
+    async function aplicarDescuentoAnticipo(uuid) {
+      frAnticipoStatus.style.display = 'none';
+      frAnticipoStatus.textContent = '';
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/facturas/${uuid}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const res = await response.json();
+        if (!res.success) throw new Error('success:false');
+        const f = res.data;
+        const monto = parseFloat(f.total || f.monto || f.importe || 0);
+        if (!monto || monto <= 0) throw new Error('monto_cero');
+        frState.anticipoMonto = monto;
+        const firstDescuento = document.querySelector('#products-tbody .descuento');
+        if (firstDescuento) {
+          firstDescuento.value = monto.toFixed(2);
+          if (typeof actualizarTotalesTimbrado === 'function') actualizarTotalesTimbrado();
+          if (typeof mostrarOcultarColumnaDescuentos === 'function') mostrarOcultarColumnaDescuentos(true);
+        }
+        frAnticipoStatus.style.cssText = 'display:block; padding:10px 12px; border-radius:6px; font-size:0.85rem; background:#e3f2fd; border-left:3px solid #2979ff; color:#1565c0; margin-top:8px;';
+        frAnticipoStatus.textContent = `\u{1F4A1} Descuento aplicado automáticamente: $${monto.toFixed(2)} (anticipo)`;
+      } catch (e) {
+        frState.anticipoMonto = null;
+        frAnticipoStatus.style.cssText = 'display:block; padding:10px 12px; border-radius:6px; font-size:0.85rem; background:#fffbeb; border-left:3px solid #f59e0b; color:#92400e; margin-top:8px;';
+        frAnticipoStatus.textContent = '\u26A0\uFE0F No se pudo obtener el monto del anticipo. Ingresa el descuento manualmente.';
+      }
+    }
+
+    function resetFacturasRelacionadas() {
+      frTipoRelacion.value = '';
+      frUuidInput.value = '';
+      frState.foliosFiscales = [];
+      frState.anticipoMonto = null;
+      clearFrErrors();
+      renderFrUuids();
+      updateAnticipoUI();
+      frAnticipoStatus.style.display = 'none';
+    }
+
+    function toggleFrPanel() {
+      const expanded = frEnable.checked;
+      frPanel.classList.toggle('is-open', expanded);
+      frPanel.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+      if (!expanded) {
+        resetFacturasRelacionadas();
+      }
+    }
+
+    async function addFrUuid() {
+      const uuid = frUuidInput.value.trim();
+      clearFrErrors();
+      if (!UUID_REGEX.test(uuid)) {
+        frUuidError.textContent = 'Folio fiscal no válido. Debe tener formato UUID.';
+        return;
+      }
+      frState.foliosFiscales.push(uuid);
+      frUuidInput.value = '';
+      renderFrUuids();
+      if (isAnticipo()) {
+        await aplicarDescuentoAnticipo(uuid);
+      }
+    }
+
+    function validateFacturasRelacionadas() {
+      clearFrErrors();
+      if (!frEnable.checked) return true;
+      let valid = true;
+      if (!frTipoRelacion.value) {
+        frTipoError.textContent = 'Selecciona un tipo de relación.';
+        valid = false;
+      }
+      if (frState.foliosFiscales.length === 0) {
+        frListaError.textContent = 'Agrega al menos un UUID relacionado.';
+        valid = false;
+      }
+      if (frTipoRelacion.value === '07') {
+        const firstDescuento = document.querySelector('#products-tbody .descuento');
+        const montoDesc = parseFloat(firstDescuento ? firstDescuento.value : 0);
+        if (!montoDesc || montoDesc <= 0) {
+          const errorMsg = 'Para Relación 07 debes ingresar el importe del anticipo como descuento.';
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Error', errorMsg, 'error');
+          } else {
+            const msg = document.getElementById('mensajeFacturacion');
+            if (msg) { msg.textContent = errorMsg; msg.style.color = '#f44336'; }
+          }
+          valid = false;
+        }
+      }
+      return valid && Boolean(frTipoRelacion.value) && frState.foliosFiscales.length > 0;
+    }
+
+    window.getFacturasRelacionadas = function getFacturasRelacionadas() {
+      if (!frEnable.checked) return null;
+      return {
+        tipoRelacion: frTipoRelacion.value,
+        foliosFiscales: [...frState.foliosFiscales]
+      };
+    };
+
+    if (frEnable && frPanel && frTipoRelacion && frUuidInput && frAddUuid && frUuidList) {
+      frEnable.addEventListener('change', toggleFrPanel);
+      frAddUuid.addEventListener('click', addFrUuid);
+      frUuidInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addFrUuid();
+        }
+      });
+      frTipoRelacion.addEventListener('change', () => {
+        frState.foliosFiscales = [];
+        frState.anticipoMonto = null;
+        clearFrErrors();
+        clearAnticipoDiscount();
+        renderFrUuids();
+        updateAnticipoUI();
+      });
+      frUuidList.addEventListener('click', (event) => {
+        const removeBtn = event.target.closest('.fr-remove-uuid');
+        if (!removeBtn) return;
+        const index = Number(removeBtn.dataset.frIndex);
+        if (Number.isInteger(index) && index >= 0) {
+          frState.foliosFiscales.splice(index, 1);
+          renderFrUuids();
+        }
+      });
+      frAnticipoTbody.addEventListener('click', (event) => {
+        const editBtn = event.target.closest('.fr-anticipo-edit');
+        const deleteBtn = event.target.closest('.fr-anticipo-delete');
+        if (editBtn) {
+          const index = Number(editBtn.dataset.frIndex);
+          if (Number.isInteger(index) && index >= 0) {
+            frUuidInput.value = frState.foliosFiscales[index];
+            frState.foliosFiscales.splice(index, 1);
+            renderFrUuids();
+            clearAnticipoDiscount();
+          }
+        }
+        if (deleteBtn) {
+          const index = Number(deleteBtn.dataset.frIndex);
+          if (Number.isInteger(index) && index >= 0) {
+            frState.foliosFiscales.splice(index, 1);
+            renderFrUuids();
+            if (frState.foliosFiscales.length === 0) clearAnticipoDiscount();
+          }
+        }
+      });
+    }
+
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = function patchedFetch(input, init = {}) {
+      const url = typeof input === 'string' ? input : input?.url || '';
+      if (url.includes('/api/facturas/timbrar') && init && typeof init.body === 'string') {
+        try {
+          const payload = JSON.parse(init.body);
+          payload.CfdiRelacionados = window.getFacturasRelacionadas();
+          init.body = JSON.stringify(payload);
+        } catch (err) {
+          console.warn('No se pudo adjuntar CfdiRelacionados al payload.', err);
+        }
+      }
+      return originalFetch(input, init);
+    };
 
     formEmitirFactura.addEventListener('submit', function (e) {
       const conceptosContainer = document.getElementById('conceptosContainer');
@@ -1228,7 +1535,32 @@
         document.getElementById('mensajeFacturacion').style.color = '#f44336';
         return false;
       }
+      if (!validateFacturasRelacionadas()) {
+        e.preventDefault();
+        document.getElementById('mensajeFacturacion').textContent = 'Completa los datos de Facturas Relacionadas.';
+        document.getElementById('mensajeFacturacion').style.color = '#f44336';
+        return false;
+      }
     });
+
+    const originalProcesarTimbrado = window.procesarTimbrado;
+    if (typeof originalProcesarTimbrado === 'function') {
+      window.procesarTimbrado = async function procesarTimbradoConFacturasRelacionadas(...args) {
+        if (!validateFacturasRelacionadas()) {
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Error', 'Completa los datos de Facturas Relacionadas.', 'error');
+          } else {
+            const msg = document.getElementById('mensajeFacturacion');
+            if (msg) {
+              msg.textContent = 'Completa los datos de Facturas Relacionadas.';
+              msg.style.color = '#f44336';
+            }
+          }
+          return;
+        }
+        return originalProcesarTimbrado.apply(this, args);
+      };
+    }
 
     // --- Modal para enviar factura por email ---
 
@@ -1353,6 +1685,231 @@
       </form>
     </div>
   </div>
+  <!-- Modal cancelar factura (SAT) -->
+  <div id="cancelar-factura-modal"
+    style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:350;align-items:center;justify-content:center;">
+    <div
+      style="background:#fff;padding:28px 24px 22px;border-radius:16px;width:520px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      <span onclick="cerrarModalCancelarFactura()"
+        style="position:absolute;top:12px;right:16px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+      <div style="margin-bottom:20px;border-bottom:1px solid #e3e8ef;padding-bottom:14px;">
+        <h3 style="margin:0;font-size:1.25rem;font-weight:700;color:#232323;"><i class="fa fa-ban"
+            style="color:#d32f2f;margin-right:8px;"></i>Cancelar Factura</h3>
+        <p style="margin:8px 0 0;color:#6b7280;font-size:0.9rem;">Cancelación fiscal ante el SAT. Esta acción puede ser irreversible.</p>
+      </div>
+      <div id="cancelar-factura-api-error" class="modal-alert-error" role="alert"></div>
+      <div style="margin-bottom:14px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e3e8ef;">
+        <div style="margin-bottom:8px;"><span style="font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;">Folio</span>
+          <div id="cancelar-factura-folio" style="font-weight:700;color:#232323;margin-top:2px;">—</div>
+        </div>
+        <div><span style="font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;">UUID</span>
+          <div id="cancelar-factura-uuid-display" style="font-family:monospace;font-size:0.82rem;color:#374151;word-break:break-all;margin-top:2px;">—</div>
+        </div>
+      </div>
+      <form id="form-cancelar-factura" onsubmit="enviarCancelacionFactura(event)">
+        <div style="margin-bottom:16px;">
+          <label for="cancelar-factura-motivo" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Motivo de cancelación <span style="color:#d32f2f;">*</span></label>
+          <select id="cancelar-factura-motivo" required
+            style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;box-sizing:border-box;">
+            <option value="" selected disabled>Selecciona un motivo</option>
+            <option value="01">01 - Comprobante emitido con errores con relación</option>
+            <option value="02">02 - Comprobante emitido con errores sin relación</option>
+            <option value="03">03 - No se llevó a cabo la operación</option>
+            <option value="04">04 - Operación nominativa relacionada en una factura global</option>
+          </select>
+        </div>
+        <div id="cancelar-factura-uuid-sust-wrap" style="display:none;margin-bottom:16px;">
+          <label for="cancelar-factura-uuid-sustitucion" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">UUID Factura Sustitución <span style="color:#d32f2f;">*</span></label>
+          <input type="text" id="cancelar-factura-uuid-sustitucion" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;box-sizing:border-box;font-family:monospace;" />
+          <div id="cancelar-factura-uuid-sust-error" class="field-error">UUID no válido</div>
+        </div>
+        <div id="cancelar-factura-acuse-wrap" style="display:none;margin-bottom:16px;">
+          <a id="cancelar-factura-acuse-link" href="#" target="_blank" rel="noopener noreferrer"
+            style="color:#2979ff;font-weight:600;font-size:0.9rem;"><i class="fa fa-download"></i> Descargar acuse de cancelación</a>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:4px;">
+          <button type="button" onclick="cerrarModalCancelarFactura()"
+            style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;">Cerrar</button>
+          <button type="submit" id="btn-confirmar-cancelar-factura"
+            style="background:#d32f2f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i class="fa fa-ban"></i> Cancelar factura</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Reporte Mensual -->
+  <div id="reporte-mensual-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:400; align-items:center; justify-content:center; opacity:0; transition:opacity 0.3s ease;">
+    <div class="modal-premium-card" style="background:#ffffff; border-radius:24px; width:880px; max-width:95vw; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.15); border:1px solid #e2e8f0; position:relative; overflow:hidden; transform:translateY(20px); transition:transform 0.3s ease; display:flex; flex-direction:column;">
+      
+      <!-- Top Accent Bar -->
+      <div style="height:6px; background:linear-gradient(90deg, #2979ff, #00d2ff); width:100%;"></div>
+      
+      <!-- Header -->
+      <div style="padding:24px 32px 16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="background:linear-gradient(135deg, #e3f2fd, #bbdefb); width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:#2979ff;">
+            <i class="fa fa-file-excel" style="font-size:1.5rem;"></i>
+          </div>
+          <div>
+            <h3 style="margin:0; font-size:1.3rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+              Reporte Mensual <span id="reporte-rfc-badge" style="background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:30px; font-size:0.8rem; font-weight:700; font-family:monospace;">---</span>
+            </h3>
+            <p style="margin:4px 0 0; color:#64748b; font-size:0.85rem; font-weight:500;">Configura los filtros para generar tu reporte en formato Excel</p>
+          </div>
+        </div>
+        <button type="button" onclick="cerrarReporteMensualModal()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1.5rem; transition:color 0.2s; padding:4px;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">&times;</button>
+      </div>
+
+      <!-- Content / Form -->
+      <form id="form-reporte-mensual" onsubmit="descargarReporteMensual(event)" style="padding:32px; margin:0;">
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:20px; margin-bottom:28px;">
+          
+          <!-- 1. Tipo Comprobante (Emitidas/Recibidas) -->
+          <div>
+            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Comprobantes</label>
+            <select id="rep-tipo-comprobante" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;" onchange="handleTipoComprobanteChange()">
+              <option value="emitidas" selected>Emitidas (Ventas)</option>
+              <option value="recibidas">Recibidas (Compras)</option>
+            </select>
+          </div>
+
+          <!-- 2. Estatus (Vigente / Cancelada / Aplicada) -->
+          <div>
+            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Estatus CFDI</label>
+            <div style="position:relative; width:100%;">
+              <button type="button" id="btn-rep-estatus-dropdown" onclick="toggleRepEstatusDropdown()" style="width:100%; text-align:left; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                <span id="rep-estatus-selected-text">Todos</span>
+                <i class="fa fa-chevron-down" style="font-size:0.75rem; color:#64748b;"></i>
+              </button>
+              <div id="rep-estatus-options" style="display:none; position:absolute; top:100%; left:0; width:100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); z-index:50; padding:8px; margin-top:4px; box-sizing:border-box;">
+                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="VIGENTE" checked onchange="updateRepEstatusText()"> Vigente</label>
+                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="CANCELADA" checked onchange="updateRepEstatusText()"> Cancelada</label>
+                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="APLICADA" checked onchange="updateRepEstatusText()"> Aplicada</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Tipo Factura / CFDI -->
+          <div>
+            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Tipo de CFDI</label>
+            <div style="position:relative; width:100%;">
+              <button type="button" id="btn-rep-tipo-dropdown" onclick="toggleRepTipoDropdown()" style="width:100%; text-align:left; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                <span id="rep-tipo-selected-text">Todos</span>
+                <i class="fa fa-chevron-down" style="font-size:0.75rem; color:#64748b;"></i>
+              </button>
+              <div id="rep-tipo-options" style="display:none; position:absolute; top:100%; left:0; width:100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); z-index:50; padding:8px; margin-top:4px; box-sizing:border-box;">
+                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="I" checked onchange="updateRepTipoText()"> Ingreso (Factura)</label>
+                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="E" checked onchange="updateRepTipoText()"> Egreso (N. Crédito)</label>
+                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="P" checked onchange="updateRepTipoText()"> Pago (Complemento)</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Tipo Relación -->
+          <div>
+            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Tipo Relación</label>
+            <select id="rep-tipo-relacion" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;">
+              <option value="todos" selected>Todos los CFDI</option>
+              <option value="solo_facturas">Solo Facturas (Sin PPD)</option>
+              <option value="complementos_facturas">Solo Complementos de Pago</option>
+            </select>
+          </div>
+
+          <!-- 5. Año -->
+          <div>
+            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Año</label>
+            <select id="rep-anio" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;" onchange="handlePeriodoChange()">
+              <!-- Will be populated dynamically with JS -->
+            </select>
+          </div>
+
+          <!-- 6. Mes -->
+          <div>
+            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Mes</label>
+            <select id="rep-mes" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;" onchange="handlePeriodoChange()">
+              <option value="todos">Todos los meses (Rango)</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+          </div>
+
+          <!-- 7. Fecha Inicio (Rango) -->
+          <div id="rep-fecha-inicio-container">
+            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Fecha Inicio</label>
+            <input type="date" id="rep-fecha-inicio" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; box-sizing:border-box;" />
+          </div>
+
+          <!-- 8. Fecha Fin (Rango) -->
+          <div id="rep-fecha-fin-container">
+            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Fecha Fin</label>
+            <input type="date" id="rep-fecha-fin" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; box-sizing:border-box;" />
+          </div>
+
+        </div>
+
+        <!-- Checkbox: Incluir Concepto -->
+        <div style="background:#f8fafc; padding:16px 24px; border-radius:16px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="background:#e8f5e9; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#2e7d32;">
+              <i class="fa fa-info-circle" style="font-size:1.1rem;"></i>
+            </div>
+            <div>
+              <span style="display:block; font-size:0.9rem; font-weight:700; color:#334155;">Detalle de Conceptos</span>
+              <span style="font-size:0.8rem; color:#64748b;">Agrega la descripción del primer concepto facturado al reporte.</span>
+            </div>
+          </div>
+          <label class="switch" style="position:relative; display:inline-block; width:50px; height:26px; margin:0;">
+            <input type="checkbox" id="rep-incluir-concepto" checked style="opacity:0; width:0; height:0;">
+            <span class="slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#cbd5e1; transition:0.3s; border-radius:34px;"></span>
+          </label>
+        </div>
+
+        <!-- Footer Actions -->
+        <div style="display:flex; justify-content:flex-end; gap:16px; border-top:1px solid #f1f5f9; padding-top:20px;">
+          <button type="button" onclick="cerrarReporteMensualModal()" style="background:#f1f5f9; color:#475569; border:none; border-radius:12px; padding:12px 24px; font-size:0.95rem; font-weight:700; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">Cancelar</button>
+          <button type="submit" id="btn-rep-submit" style="background:linear-gradient(135deg, #2979ff, #1565c0); color:#ffffff; border:none; border-radius:12px; padding:12px 32px; font-size:0.95rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:10px; transition:all 0.2s; box-shadow:0 4px 6px -1px rgba(41, 121, 255, 0.2);" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 10px 15px -3px rgba(41, 121, 255, 0.3)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 6px -1px rgba(41, 121, 255, 0.2)';">
+            <i class="fa fa-download"></i> Generar Excel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <style>
+    #reporte-mensual-modal .switch input:checked + .slider {
+      background-color: #2979ff;
+    }
+    #reporte-mensual-modal .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+    #reporte-mensual-modal .switch input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+    #reporte-mensual-modal select:focus, #reporte-mensual-modal input:focus {
+      border-color: #2979ff !important;
+      background-color: #ffffff !important;
+      box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.15);
+    }
+  </style>
 </body>
 
 </html>

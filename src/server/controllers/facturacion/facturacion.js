@@ -2,12 +2,28 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const db = require('../../config/database');
-const { normalizarXmlString, extraerDatosSatDesdeXml } = require('../../../utils/facturacion/xmlUtils');
+const {
+    normalizarXmlString,
+    extraerDatosSatDesdeXml,
+    extraerXmlDesdeRespuestaFacturama,
+    resolverTotalesDesdeTimbrado,
+    guardarXmlEnDisco
+} = require('../../../utils/facturacion/xmlUtils');
 const { desencriptar } = require('../../../utils/facturacion/encryption');
 const PDFService = require('../../services/pdfService');
-const { obtenerTokenFacturama, resolverLugarExpedicionValido, resolverSerieValidaParaLugarExpedicion, construirCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama, timbrarXmlSellado } = require('../../services/facturacion/facturamaservice');
+const {
+    obtenerTokenFacturama,
+    resolverLugarExpedicionValido,
+    resolverSerieValidaParaLugarExpedicion,
+    construirCfdiJson,
+    FACTURAMA_BASE_URL,
+    cancelarFacturaFacturama,
+    timbrarXmlSellado,
+    obtenerXmlTimbradoPorId
+} = require('../../services/facturacion/facturamaservice');
 const emailService = require('../../services/emailService');
 const xmlService = require('../../services/facturacion/xmlService');
+const { crearNotificacion } = require('../../services/facturacionNotifService');
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const DEFAULT_PDF_STORAGE_DIR = path.join(PROJECT_ROOT, 'public', 'pdfs');
@@ -17,16 +33,97 @@ const pdfService = new PDFService();
 
 // Estados fiscales canonicos para evitar guardar variantes en la base de datos.
 const ESTADOS_FACTURA = {
+    BORRADOR: 'BORRADOR',
+    TIMBRANDO: 'TIMBRANDO',
     TIMBRADA: 'TIMBRADA',
-    PENDIENTE_PAGO: 'PENDIENTE_PAGO',
+    ERROR: 'ERROR',
     CANCELADA: 'CANCELADA',
-    ERROR: 'ERROR'
+    APLICADA: 'APLICADA',
+    PARCIAL: 'PARCIAL'
 };
 
 function resolverEstadoFacturaTimbrada({ esComplementoPago, esMetodoPpd }) {
-    if (esComplementoPago) return ESTADOS_FACTURA.TIMBRADA;
-    if (esMetodoPpd) return ESTADOS_FACTURA.PENDIENTE_PAGO;
-    return ESTADOS_FACTURA.TIMBRADA;
+    if (esComplementoPago) return ESTADOS_FACTURA.APLICADA;
+    if (esMetodoPpd) return ESTADOS_FACTURA.TIMBRADA;
+    return ESTADOS_FACTURA.APLICADA;
+}
+
+function esUuidBorrador(uuid) {
+    return String(uuid || '').toUpperCase().startsWith('BORRADOR');
+}
+
+function calcularTotalesDesdeConceptos(conceptos = [], aplicaIva = true) {
+    const lista = Array.isArray(conceptos) ? conceptos : [];
+    let subtotal = 0;
+    let descuento = 0;
+    let iva = 0;
+    lista.forEach((c) => {
+        const cantidad = Number(c.cantidad || 1);
+        const valorUnitario = Number(c.valorUnitario || 0);
+        const desc = Number(c.descuento || 0);
+        const importe = Number((cantidad * valorUnitario - desc).toFixed(2));
+        subtotal += importe;
+        descuento += desc;
+        if (aplicaIva && (c.objetoImp === '02' || c.impuestos)) {
+            iva += Number((importe * 0.16).toFixed(2));
+        }
+    });
+    subtotal = Number(subtotal.toFixed(2));
+    descuento = Number(descuento.toFixed(2));
+    iva = Number(iva.toFixed(2));
+    const total = Number((subtotal + iva).toFixed(2));
+    return { subtotal, descuento, iva, total };
+}
+
+function normalizarEstadoCanonico({ estadoDb, metodoPago, esComplemento, compMonto, total }) {
+    const estado = String(estadoDb || '').toUpperCase().trim();
+    const metodo = String(metodoPago || 'PUE').toUpperCase();
+    const pagado = Number(compMonto || 0);
+    const totalFactura = Number(total || 0);
+
+    if (!estado || estado.startsWith('BORRADOR')) return ESTADOS_FACTURA.BORRADOR;
+    if (estado.startsWith('CANCELAD')) return ESTADOS_FACTURA.CANCELADA;
+    if (estado.startsWith('TIMBRANDO')) return ESTADOS_FACTURA.TIMBRANDO;
+    if (estado.startsWith('ERROR')) return ESTADOS_FACTURA.ERROR;
+    if (estado.startsWith('APLICAD')) return ESTADOS_FACTURA.APLICADA;
+    if (estado.startsWith('PARCIAL')) return ESTADOS_FACTURA.PARCIAL;
+
+    if (esComplemento) return ESTADOS_FACTURA.APLICADA;
+
+    // Legacy: "Pendiente PPD" guardado en PUE por bug antiguo de timbrado
+    if (estado.includes('PENDIENTE') && metodo === 'PUE') {
+        return ESTADOS_FACTURA.APLICADA;
+    }
+    if (estado.includes('PENDIENTE') && metodo === 'PPD') {
+        if (pagado <= 0.009) return ESTADOS_FACTURA.TIMBRADA;
+        if (pagado >= totalFactura - 0.01) return ESTADOS_FACTURA.APLICADA;
+        return ESTADOS_FACTURA.PARCIAL;
+    }
+
+    if (estado.startsWith('TIMBRAD') || estado === 'EMITIDA' || estado === 'EMITIDO' || estado === 'FACTURADA') {
+        if (metodo === 'PUE') return ESTADOS_FACTURA.APLICADA;
+        if (pagado <= 0.009) return ESTADOS_FACTURA.TIMBRADA;
+        if (pagado >= totalFactura - 0.01) return ESTADOS_FACTURA.APLICADA;
+        return ESTADOS_FACTURA.PARCIAL;
+    }
+
+    if (metodo === 'PUE') return ESTADOS_FACTURA.APLICADA;
+    if (pagado <= 0.009) return ESTADOS_FACTURA.TIMBRADA;
+    if (pagado >= totalFactura - 0.01) return ESTADOS_FACTURA.APLICADA;
+    return ESTADOS_FACTURA.PARCIAL;
+}
+
+function etiquetaDistribucionEstado(estadoCanonico) {
+    const mapa = {
+        BORRADOR: 'Borrador',
+        TIMBRANDO: 'Timbrando',
+        TIMBRADA: 'Timbrada',
+        ERROR: 'Error',
+        CANCELADA: 'Cancelada',
+        APLICADA: 'Aplicada',
+        PARCIAL: 'Parcial'
+    };
+    return mapa[estadoCanonico] || estadoCanonico;
 }
 
 // helper para front/facturacion que también usa formateo de montos
@@ -116,7 +213,9 @@ exports.timbrarFactura = async (req, res) => {
         console.log('[DEBUG ROOT] req.body keys:', Object.keys(req.body));
         console.log('[DEBUG ROOT] req.body.factura keys:', req.body.factura ? Object.keys(req.body.factura) : 'null');
 
-        const { receptor, factura, conceptos, complementoPago } = req.body;
+        const { receptor, factura, conceptos, complementoPago, CfdiRelacionados } = req.body;
+        const idFacturaBorrador = Number(req.body.id_factura_borrador || factura?.id_factura_borrador || 0) || null;
+        const relacionadosInput = CfdiRelacionados || factura?.CfdiRelacionados || null;
         const cotizacionId = factura?.cotizacion_id || null;
         const cotizacionNumero = factura?.cotizacion_numero || null;
 
@@ -297,38 +396,37 @@ exports.timbrarFactura = async (req, res) => {
             console.log(`[DEBUG] Totales Finales: Subtotal=${subtotal}, Descuento=${totalDescuento}, IVA=${totalImpuestosTrasladados}, Total=${total}`);
         }
 
-        // antes de continuar validar que si el método de pago es PPD el cliente tenga
-        // crédito disponible suficiente (limite_credito - saldo_actual >= total).
+        // Validación de negocio: no otorgar un nuevo PPD si el cliente ya tiene
+        // un crédito activo (saldo/deuda pendiente en ledger).
         const esMetodoPpd = String(factura.metodoPago || '').toUpperCase() === 'PPD';
         if (!esComplementoPago && esMetodoPpd && receptor.id_cliente) {
             try {
-                const clientRes = await db.query(
-                    'SELECT COALESCE(limite_credito,0) AS limite_credito FROM clientes WHERE id_cliente = $1',
+                const saldoRes = await db.query(
+                    `
+                    SELECT
+                      COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) -
+                      COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS saldo
+                    FROM customer_ledger
+                    WHERE id_cliente = $1
+                    `,
                     [receptor.id_cliente]
                 );
-                const limiteCredito = Number(clientRes.rows[0]?.limite_credito || 0);
-                if (limiteCredito > 0) {
-                    const saldoRes = await db.query(
-                        `
-                        SELECT
-                          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) -
-                          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS saldo
-                        FROM customer_ledger
-                        WHERE id_cliente = $1
-                        `,
-                        [receptor.id_cliente]
-                    );
-                    const saldoAnteriorGlobal = Number(saldoRes.rows[0]?.saldo || 0);
-                    const disponible = Number((limiteCredito - saldoAnteriorGlobal).toFixed(2));
-                    if (disponible < total) {
-                        return res.status(400).json({
-                            success: false,
-                            error: `Crédito insuficiente: límite ${limiteCredito.toFixed(2)}, saldo actual ${saldoAnteriorGlobal.toFixed(2)}, disponible ${disponible.toFixed(2)}, total factura ${total.toFixed(2)}`
-                        });
-                    }
+                const deudaActiva = Number(saldoRes.rows[0]?.saldo || 0);
+                console.log('[VALIDACION_CREDITO_ACTIVO] Cliente %s | deuda=%s | metodo=%s', receptor.id_cliente, deudaActiva.toFixed(2), factura.metodoPago);
+
+                if (deudaActiva > 0.009) {
+                    return res.status(400).json({
+                        success: false,
+                        error: `No se puede generar otra factura a crédito (PPD): el cliente ya tiene un crédito activo por ${deudaActiva.toFixed(2)}. Factura este CFDI como PUE o liquida el crédito vigente primero.`,
+                        code: 'CLIENTE_CON_CREDITO_ACTIVO',
+                        details: {
+                            id_cliente: receptor.id_cliente,
+                            deuda_activa: Number(deudaActiva.toFixed(2))
+                        }
+                    });
                 }
             } catch (credError) {
-                console.warn('[VALIDACIÓN CRÉDITO] error consultando saldo/ límite:', credError.message);
+                console.warn('[VALIDACION_CREDITO_ACTIVO] error consultando deuda activa:', credError.message);
                 // en caso de fallo de BD no bloqueamos el timbrado; solo logueamos
             }
         }
@@ -352,6 +450,10 @@ exports.timbrarFactura = async (req, res) => {
                 regimenFiscal: emisorConfig.regimen_fiscal
             },
             informacionGlobal: informacionGlobal,
+            cfdiRelacionados: relacionadosInput ? {
+                tipoRelacion: relacionadosInput.tipoRelacion,
+                foliosFiscales: relacionadosInput.foliosFiscales || (relacionadosInput.uuid ? [relacionadosInput.uuid] : [])
+            } : null,
             receptor: {
                 rfc: receptor.rfc,
                 nombre: receptor.nombre,
@@ -368,6 +470,7 @@ exports.timbrarFactura = async (req, res) => {
                 descripcion: c.Descripcion,
                 valorUnitario: c.ValorUnitario,
                 importe: c.Importe,
+                descuento: c.Descuento || 0,
                 objetoImp: c.ObjetoImp,
                 impuestos: c.Impuestos
             })),
@@ -379,6 +482,8 @@ exports.timbrarFactura = async (req, res) => {
             },
             serie: 'A',
             folio: 'SAT', // Placeholder temporal
+            formaPago: factura.formaPago,
+            metodoPago: factura.metodoPago,
             lugarExpedicion: emisorConfig.codigo_postal
         };
 
@@ -533,7 +638,11 @@ exports.timbrarFactura = async (req, res) => {
                     total,
                     totalImpuestosTrasladados,
                     tipoComprobante: tipoComprobanteReq,
-                    cfdiType: tipoComprobanteReq
+                    cfdiType: tipoComprobanteReq,
+                    relatedCfdi: relacionadosInput ? (relacionadosInput.foliosFiscales || [relacionadosInput.uuid]).filter(Boolean).map(uuid => ({
+                        Uuid: uuid,
+                        RelationshipType: relacionadosInput.tipoRelacion
+                    })) : undefined
                 });
             }
 
@@ -552,36 +661,52 @@ exports.timbrarFactura = async (req, res) => {
             timbradoExitoso = true;
         }
 
+        console.log('[DEBUG] Facturama response keys: ' + (facturamaData ? JSON.stringify(Object.keys(facturamaData)) : 'null'));
+
         if (timbradoExitoso && facturamaData && facturamaData.Id) {
-            // Calcular totales finales asegurando consistencia matemática
-            const finalSubtotal = Number(facturamaData.Subtotal || facturamaData.SubTotal || subtotal);
-            const finalDescuento = Number(facturamaData.Discount || facturamaData.Descuento || totalDescuento);
-
-            // IVA: Intentar obtener de lo que regresó Facturama o usar nuestro cálculo local si no viene
-            let finalIva = 0;
-            if (facturamaData.Impuestos && (facturamaData.Impuestos.TotalImpuestosTrasladados !== undefined)) {
-                finalIva = Number(facturamaData.Impuestos.TotalImpuestosTrasladados);
-            } else if (facturamaData.TotalImpuestosTrasladados !== undefined) {
-                finalIva = Number(facturamaData.TotalImpuestosTrasladados);
-            } else {
-                finalIva = Number(totalImpuestosTrasladados);
-            }
-
-            // Total: Confiar en Facturama pero validar contra cálculo local si hay discrepancia mayor a 1 centavo
-            let finalTotal = Number(facturamaData.Total || total);
-            const calculoLocal = Number((finalSubtotal - finalDescuento + finalIva).toFixed(2));
-
-            if (Math.abs(finalTotal - calculoLocal) > 0.05) {
-                console.warn(`[DEBUG] Discrepancia de totales: Facturama=${finalTotal} vs Local=${calculoLocal}. Usando cálculo local para el PDF.`);
-                finalTotal = calculoLocal;
-            }
-
             // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
             const pesoTotal = conceptosInput.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
 
-            // normalizar el XML que nos regresa Facturama para manejar casos base64/escapado
-            const xmlTimbradoRaw = facturamaData.Cfdi || '';
-            const xmlTimbrado = normalizarXmlString(xmlTimbradoRaw);
+            let xmlTimbrado = extraerXmlDesdeRespuestaFacturama(facturamaData);
+            if (!xmlTimbrado && facturamaData.Id) {
+                try {
+                    xmlTimbrado = await obtenerXmlTimbradoPorId(facturamaData.Id);
+                    if (xmlTimbrado) {
+                        facturamaData.Cfdi = xmlTimbrado;
+                        facturamaData.Xml = xmlTimbrado;
+                    }
+                } catch (xmlFetchErr) {
+                    console.warn('[TIMBRAR] No se pudo descargar XML timbrado:', xmlFetchErr.message);
+                }
+            }
+            if (!xmlTimbrado && xmlSelladoString) {
+                console.warn('[TIMBRAR] Sin XML timbrado en respuesta; usando XML sellado local como respaldo.');
+                xmlTimbrado = xmlSelladoString;
+            }
+
+            const totalesResueltos = resolverTotalesDesdeTimbrado({
+                respuestaFacturama: facturamaData,
+                xmlTimbrado,
+                totalesLocales: {
+                    subtotal,
+                    descuento: totalDescuento,
+                    iva: totalImpuestosTrasladados,
+                    total
+                }
+            });
+            const finalSubtotal = totalesResueltos.subtotal;
+            const finalDescuento = totalesResueltos.descuento;
+            const finalIva = totalesResueltos.iva;
+            const finalTotal = totalesResueltos.total;
+
+            const calculoLocal = Number((subtotal - totalDescuento + totalImpuestosTrasladados).toFixed(2));
+            if (Math.abs(finalTotal - calculoLocal) > 0.05) {
+                console.warn(
+                    `[DEBUG] Totales timbrado (${totalesResueltos.fuente}): ${finalTotal} vs cálculo UI: ${calculoLocal}. PDF/BD usan timbrado.`
+                );
+            }
+
+            const xmlTimbradoRaw = facturamaData.Cfdi || facturamaData.Xml || xmlTimbrado;
             // también parsear con helper para obtener sitio de datos SAT
             const satData = extraerDatosSatDesdeXml(xmlTimbradoRaw);
 
@@ -666,26 +791,33 @@ exports.timbrarFactura = async (req, res) => {
                     pais: receptor.pais || '',
                     direccion: receptor.direccion || ''
                 },
-                factura: factura,
+                factura: {
+                    ...factura,
+                    hayDescuentos: finalDescuento > 0
+                },
                 comprobante: {
                     tipo: factura.tipo || 'I',
                     serie: factura.serie || 'A',
                     moneda: factura.moneda || 'MXN',
                     tipoCambio: factura.tipoCambio || 1
                 },
-                conceptos: conceptosInput.map((concepto, idx) => {
-                    const mapped = {
-                        cantidad: concepto.cantidad,
+                conceptos: conceptosInput.map((concepto) => {
+                    const cantidad = Number(concepto.cantidad || 0);
+                    const valorUnitario = Number(concepto.valorUnitario || 0);
+                    const descuento = Number(concepto.descuento || 0);
+                    const importeBruto = Number((cantidad * valorUnitario).toFixed(2));
+                    return {
+                        cantidad,
                         claveProductoServicio: concepto.claveProductoServicio,
                         claveUnidad: concepto.claveUnidad,
                         unidad: concepto.unidad || 'H87',
                         descripcion: concepto.descripcion,
                         caracteristicas: concepto.caracteristicas || '',
-                        valorUnitario: concepto.valorUnitario,
-                        descuento: concepto.descuento || 0,
-                        importe: (concepto.cantidad * concepto.valorUnitario) - (concepto.descuento || 0)
+                        valorUnitario,
+                        precio: valorUnitario,
+                        descuento,
+                        importe: Number((importeBruto - descuento).toFixed(2))
                     };
-                    return mapped;
                 }),
                 totales: {
                     subtotal: finalSubtotal,
@@ -709,6 +841,10 @@ exports.timbrarFactura = async (req, res) => {
                     rfcReceptor: receptor.rfc,
                     total: finalTotal
                 },
+                relacionados: relacionadosInput ? {
+                    tipoRelacion: relacionadosInput.tipoRelacion,
+                    uuid: relacionadosInput.foliosFiscales || relacionadosInput.uuid
+                } : null,
                 observaciones: observaciones || ''
             };
 
@@ -774,9 +910,11 @@ exports.timbrarFactura = async (req, res) => {
             const storageDir = process.env.PDF_STORAGE_DIR || DEFAULT_PDF_STORAGE_DIR;
             const rutaXML = path.join(storageDir, nombreArchivoXml);
 
-            if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-            // escribir xml normalizado para evitar problemas con base64/entidades
-            fs.writeFileSync(rutaXML, xmlTimbrado || '');
+            const xmlParaGuardar = extraerXmlDesdeRespuestaFacturama(facturamaData) || xmlTimbrado;
+            if (!xmlParaGuardar || !xmlParaGuardar.trim().startsWith('<')) {
+                throw new Error('No se obtuvo XML timbrado válido para guardar en disco.');
+            }
+            guardarXmlEnDisco(xmlParaGuardar, rutaXML);
 
             // Guardar en base de datos
             const userId = req.user?.id_usuario || req.user?.id || null;
@@ -788,38 +926,73 @@ exports.timbrarFactura = async (req, res) => {
             const usoCfdiSat = String(receptor.usoCfdi || '').toUpperCase();
             const usoCfdiDb = (esComplementoPago && usoCfdiSat === 'CP01') ? 'P01' : usoCfdiSat;
 
-            const insertFacturaRes = await db.query(
-                `INSERT INTO facturas (
-                    uuid, fecha_emision, fecha_timbrado, total, subtotal, total_descuento, total_iva,
-                    forma_pago, metodo_pago, uso_cfdi, estado, xml_path, pdf_path,
-                    sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente,
-                    id_usuario, folio
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-                 RETURNING id_factura, folio, uuid, total, id_cliente, metodo_pago`,
-                [
-                    uuidSat,
-                    new Date(),
-                    new Date(fechaTimbradoSat),
-                    esComplementoPago ? Number(complementoPago?.amount || finalTotal || 0) : finalTotal,
-                    finalSubtotal,
-                    finalDescuento,
-                    finalIva,
-                    formaPagoFinal,
-                    factura.metodoPago,
-                    usoCfdiDb,
-                    estadoFactura,
-                    nombreArchivoXml,
-                    nombreArchivo,
-                    selloCfdiEmitido || '',
-                    selloSatEmitido || '',
-                    noCertificadoEmisorEmitido || '',
-                    noCertificadoSatEmitido || '',
-                    1,
-                    receptor.id_cliente || 1,
-                    userId,
-                    folioSat
-                ]
-            );
+            // UUID relacionado: primer folio fiscal de cfdiRelacionados, o uuid simple
+            const uuidRelacionadoFinal = relacionadosInput
+                ? (Array.isArray(relacionadosInput.foliosFiscales) && relacionadosInput.foliosFiscales[0])
+                    || relacionadosInput.uuid
+                    || null
+                : null;
+            const tipoRelacionFinal = relacionadosInput?.tipoRelacion || null;
+
+            const valoresFactura = [
+                uuidSat,
+                new Date(),
+                new Date(fechaTimbradoSat),
+                esComplementoPago ? Number(complementoPago?.amount || finalTotal || 0) : finalTotal,
+                finalSubtotal,
+                finalDescuento,
+                finalIva,
+                formaPagoFinal,
+                factura.metodoPago,
+                usoCfdiDb,
+                estadoFactura,
+                nombreArchivoXml,
+                nombreArchivo,
+                selloCfdiEmitido || '',
+                selloSatEmitido || '',
+                noCertificadoEmisorEmitido || '',
+                noCertificadoSatEmitido || '',
+                1,
+                receptor.id_cliente || 1,
+                userId,
+                folioSat,
+                uuidRelacionadoFinal,
+                tipoRelacionFinal
+            ];
+
+            let insertFacturaRes;
+            if (idFacturaBorrador) {
+                const borradorCheck = await db.query(
+                    `SELECT id_factura FROM facturas WHERE id_factura = $1 AND UPPER(COALESCE(estado,'')) = 'BORRADOR'`,
+                    [idFacturaBorrador]
+                );
+                if (borradorCheck.rows.length > 0) {
+                    insertFacturaRes = await db.query(
+                        `UPDATE facturas SET
+                            uuid = $1, fecha_emision = $2, fecha_timbrado = $3, total = $4, subtotal = $5,
+                            total_descuento = $6, total_iva = $7, forma_pago = $8, metodo_pago = $9, uso_cfdi = $10,
+                            estado = $11, xml_path = $12, pdf_path = $13, sello_cfdi = $14, sello_sat = $15,
+                            no_certificado = $16, no_certificado_sat = $17, id_emisor = $18, id_cliente = $19,
+                            id_usuario = $20, folio = $21, nota = NULL,
+                            uuid_relacionado = $23, tipo_relacion = $24
+                         WHERE id_factura = $22
+                         RETURNING id_factura, folio, uuid, total, id_cliente, metodo_pago`,
+                        [...valoresFactura, idFacturaBorrador]
+                    );
+                }
+            }
+            if (!insertFacturaRes) {
+                insertFacturaRes = await db.query(
+                    `INSERT INTO facturas (
+                        uuid, fecha_emision, fecha_timbrado, total, subtotal, total_descuento, total_iva,
+                        forma_pago, metodo_pago, uso_cfdi, estado, xml_path, pdf_path,
+                        sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente,
+                        id_usuario, folio, uuid_relacionado, tipo_relacion
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                     RETURNING id_factura, folio, uuid, total, id_cliente, metodo_pago`,
+                    valoresFactura
+                );
+            }
 
             const facturaInsertada = insertFacturaRes.rows[0];
 
@@ -925,6 +1098,24 @@ exports.timbrarFactura = async (req, res) => {
                 }
             }
 
+            // Registrar notificación de éxito
+            crearNotificacion({
+                tipo: esComplementoPago ? 'COMPLEMENTO_TIMBRADO' : 'FACTURA_TIMBRADA',
+                mensaje: `${esComplementoPago ? 'Complemento de pago' : 'Factura'} timbrada exitosamente con folio/UUID: ${uuidSat.substring(0, 8)}. Cliente: ${receptor.nombre}. Total: $${finalTotal}`,
+                modulo: 'facturacion',
+                referencia_tipo: esComplementoPago ? 'complemento_pago' : 'factura',
+                referencia_id: uuidSat,
+                id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+                metadata: {
+                    folio: uuidSat.substring(0, 8),
+                    uuid: uuidSat,
+                    total: finalTotal,
+                    cliente: receptor.nombre,
+                    rfc: receptor.rfc,
+                    tipo: tipoComprobanteReq
+                }
+            }).catch(err => console.error('[DEBUG] Error al crear notificación:', err));
+
             res.json({
                 success: true,
                 message: 'Factura timbrada exitosamente',
@@ -933,7 +1124,7 @@ exports.timbrarFactura = async (req, res) => {
                     total: finalTotal,
                     estado: estadoFactura,
                     pdfPath: rutaPDF,
-                    xml: facturamaData.Cfdi
+                    xml: facturamaData.Cfdi || facturamaData.Xml
                 }
             });
 
@@ -944,6 +1135,9 @@ exports.timbrarFactura = async (req, res) => {
 
     } catch (error) {
         console.error('Error timbrando factura:', error);
+
+        let errorMessage = error.message;
+        let errorDetails = {};
 
         if (error.response) {
             console.error('Detalles del Error de Facturama:', error.response.data);
@@ -956,11 +1150,45 @@ exports.timbrarFactura = async (req, res) => {
                 || error.response.data?.ExceptionMessage
                 || 'La solicitud no es valida.';
             const detalle = modelStateFlat ? ` | Detalle: ${modelStateFlat}` : '';
+            errorMessage = `Error de Facturama: ${facturamaErrorMessage}${detalle}`;
+            errorDetails = error.response.data || {};
+            
+            // Registrar notificación de error
+            crearNotificacion({
+                tipo: 'ERROR_TIMBRADO',
+                mensaje: `Error al timbrar factura/complemento para cliente ${receptor?.nombre || 'Desconocido'}: ${errorMessage.substring(0, 200)}`,
+                modulo: 'facturacion',
+                referencia_tipo: 'factura',
+                referencia_id: idFacturaBorrador,
+                id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+                metadata: {
+                    error: errorMessage,
+                    detalles: errorDetails,
+                    cliente: receptor?.nombre,
+                    rfc: receptor?.rfc
+                }
+            }).catch(err => console.error('[DEBUG] Error al crear notificación de error:', err));
+
             return res.status(400).json({
                 success: false,
                 error: `Error de Facturama: ${facturamaErrorMessage}${detalle}`
             });
         }
+
+        // Registrar notificación de error
+        crearNotificacion({
+            tipo: 'ERROR_TIMBRADO',
+            mensaje: `Error al timbrar factura/complemento para cliente ${receptor?.nombre || 'Desconocido'}: ${errorMessage.substring(0, 200)}`,
+            modulo: 'facturacion',
+            referencia_tipo: 'factura',
+            referencia_id: idFacturaBorrador,
+            id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+            metadata: {
+                error: errorMessage,
+                cliente: receptor?.nombre,
+                rfc: receptor?.rfc
+            }
+        }).catch(err => console.error('[DEBUG] Error al crear notificación de error:', err));
 
         res.status(500).json({
             success: false,
@@ -973,7 +1201,7 @@ exports.timbrarFactura = async (req, res) => {
 exports.cancelarFactura = async (req, res) => {
     try {
         const { uuid } = req.params;
-        const { motivoCancelacion, motivo } = req.body;
+        const { motivoCancelacion, motivo, uuidSustitucion } = req.body;
         const finalMotivo = motivoCancelacion || motivo;
 
         if (!uuid || !finalMotivo) {
@@ -983,14 +1211,43 @@ exports.cancelarFactura = async (req, res) => {
             });
         }
 
+        if (esUuidBorrador(uuid)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Los borradores no se cancelan en el SAT. Elimínalos o continúa el timbrado.'
+            });
+        }
+
         // Cancelar en Facturama usando el servicio robustecido
         await cancelarFacturaFacturama(uuid, finalMotivo);
 
-        // Actualizar estado en base de datos
+        // Actualizar estado en base de datos.
+        // Motivo '01' = sustituida por otra: guardamos uuid_relacionado con la factura sustituta.
+        const uuidSust = (finalMotivo === '01' && uuidSustitucion) ? String(uuidSustitucion).trim() : null;
         await db.query(
-            'UPDATE facturas SET estado = $1, motivo_cancelacion = $2 WHERE uuid = $3',
-            [ESTADOS_FACTURA.CANCELADA, finalMotivo, uuid]
+            `UPDATE facturas
+             SET estado = $1, motivo_cancelacion = $2
+               ${uuidSust ? ', uuid_relacionado = $4, tipo_relacion = $5' : ''}
+             WHERE uuid = $3`,
+            uuidSust
+                ? [ESTADOS_FACTURA.CANCELADA, finalMotivo, uuid, uuidSust, '01']
+                : [ESTADOS_FACTURA.CANCELADA, finalMotivo, uuid]
         );
+
+        // Registrar notificación de éxito
+        crearNotificacion({
+            tipo: 'FACTURA_CANCELADA',
+            mensaje: `Factura cancelada exitosamente con folio/UUID: ${uuid.substring(0, 8)}. Motivo: ${finalMotivo}`,
+            modulo: 'facturacion',
+            referencia_tipo: 'factura',
+            referencia_id: uuid,
+            id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+            metadata: {
+                uuid,
+                motivo: finalMotivo,
+                uuid_sustitucion: uuidSust
+            }
+        }).catch(err => console.error('[DEBUG] Error al crear notificación:', err));
 
         res.json({
             success: true,
@@ -1003,13 +1260,44 @@ exports.cancelarFactura = async (req, res) => {
 
     } catch (error) {
         console.error('Error cancelando factura:', error);
-
+        
+        let errorMessage = error.message;
         if (error.response) {
+            errorMessage = error.response.data.Message || error.response.data;
+            
+            // Registrar notificación de error
+            crearNotificacion({
+                tipo: 'ERROR_TIMBRADO',
+                mensaje: `Error al cancelar factura con UUID ${uuid.substring(0, 8)}: ${String(errorMessage).substring(0, 200)}`,
+                modulo: 'facturacion',
+                referencia_tipo: 'factura',
+                referencia_id: uuid,
+                id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+                metadata: {
+                    uuid,
+                    error: errorMessage
+                }
+            }).catch(err => console.error('[DEBUG] Error al crear notificación de error:', err));
+
             return res.status(400).json({
                 success: false,
-                error: `Error de Facturama: ${error.response.data.Message || error.response.data}`
+                error: `Error de Facturama: ${errorMessage}`
             });
         }
+
+        // Registrar notificación de error
+        crearNotificacion({
+            tipo: 'ERROR_TIMBRADO',
+            mensaje: `Error al cancelar factura con UUID ${uuid.substring(0, 8)}: ${String(errorMessage).substring(0, 200)}`,
+            modulo: 'facturacion',
+            referencia_tipo: 'factura',
+            referencia_id: uuid,
+            id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+            metadata: {
+                uuid,
+                error: errorMessage
+            }
+        }).catch(err => console.error('[DEBUG] Error al crear notificación de error:', err));
 
         res.status(500).json({
             success: false,
@@ -1022,7 +1310,8 @@ exports.cancelarFactura = async (req, res) => {
 exports.vistaPreviaFactura = async (req, res) => {
     try {
         console.log('[DEBUG] Generando vista previa...');
-        const { receptor, factura, conceptos } = req.body;
+        const { receptor, factura, conceptos, CfdiRelacionados } = req.body;
+        const relacionadosInput = CfdiRelacionados || factura?.CfdiRelacionados || null;
         const conceptosInput = Array.isArray(conceptos) ? conceptos : [];
         const observaciones = factura?.observaciones || '';
         
@@ -1103,6 +1392,10 @@ exports.vistaPreviaFactura = async (req, res) => {
                 formaPago: factura.formaPago || '03'
             },
             conceptos: conceptosProcesados,
+            relacionados: relacionadosInput ? {
+                tipoRelacion: relacionadosInput.tipoRelacion,
+                uuid: relacionadosInput.foliosFiscales || relacionadosInput.uuid
+            } : null,
             observaciones: observaciones,
             factura: {
                 notas_internas: factura.notas_internas,
@@ -1131,7 +1424,9 @@ exports.obtenerFacturaPorUuid = async (req, res) => {
         const { uuid } = req.params;
 
         const result = await db.query(
-            `SELECT f.*, c.dias_credito 
+            `SELECT f.*, c.dias_credito,
+                    CASE WHEN c.rfc = 'XAXX010101000' THEN 'PUBLICO EN GENERAL' ELSE c.nombre END as cliente_nombre,
+                    c.rfc as cliente_rfc
              FROM facturas f 
              LEFT JOIN clientes c ON f.id_cliente = c.id_cliente 
              WHERE f.uuid = $1`,
@@ -1161,6 +1456,164 @@ exports.obtenerFacturaPorUuid = async (req, res) => {
     }
 };
 
+// GUARDAR / ACTUALIZAR BORRADOR DE FACTURA
+exports.guardarBorradorFactura = async (req, res) => {
+    try {
+        const { receptor, factura, conceptos, CfdiRelacionados, aplicaIva } = req.body;
+        const idBorrador = Number(req.body.id_factura || factura?.id_factura_borrador || 0) || null;
+        const userId = req.user?.id_usuario || req.user?.id || null;
+
+        if (!receptor?.id_cliente && !receptor?.rfc) {
+            return res.status(400).json({ success: false, error: 'Selecciona un cliente para guardar el borrador.' });
+        }
+        if (!Array.isArray(conceptos) || conceptos.length === 0) {
+            return res.status(400).json({ success: false, error: 'Agrega al menos un concepto al borrador.' });
+        }
+
+        const totales = calcularTotalesDesdeConceptos(conceptos, aplicaIva !== false);
+        const payloadBorrador = {
+            version: 1,
+            receptor,
+            factura,
+            conceptos,
+            CfdiRelacionados: CfdiRelacionados || factura?.CfdiRelacionados || null,
+            aplicaIva: aplicaIva !== false
+        };
+
+        let idCliente = receptor.id_cliente || null;
+        if (!idCliente && receptor.rfc) {
+            const clRes = await db.query(
+                'SELECT id_cliente FROM clientes WHERE UPPER(rfc) = UPPER($1) LIMIT 1',
+                [receptor.rfc]
+            );
+            idCliente = clRes.rows[0]?.id_cliente || 1;
+        }
+
+        const metodoPago = String(factura?.metodoPago || 'PUE').toUpperCase();
+        const formaPago = metodoPago === 'PPD' ? '99' : String(factura?.formaPago || '03');
+        const usoCfdi = String(receptor.usoCfdi || 'G03').toUpperCase();
+
+        if (idBorrador) {
+            const upd = await db.query(
+                `UPDATE facturas SET
+                    id_cliente = $1, subtotal = $2, total_descuento = $3, total_iva = $4, total = $5,
+                    forma_pago = $6, metodo_pago = $7, uso_cfdi = $8, estado = $9, nota = $10,
+                    id_usuario = COALESCE($11, id_usuario), fecha_emision = CURRENT_TIMESTAMP
+                 WHERE id_factura = $12 AND UPPER(COALESCE(estado,'')) = 'BORRADOR'
+                 RETURNING id_factura, folio, uuid`,
+                [
+                    idCliente,
+                    totales.subtotal,
+                    totales.descuento,
+                    totales.iva,
+                    totales.total,
+                    formaPago,
+                    metodoPago,
+                    usoCfdi,
+                    ESTADOS_FACTURA.BORRADOR,
+                    JSON.stringify(payloadBorrador),
+                    userId,
+                    idBorrador
+                ]
+            );
+            if (!upd.rows.length) {
+                return res.status(404).json({ success: false, error: 'Borrador no encontrado o ya fue timbrado.' });
+            }
+            return res.json({ success: true, data: upd.rows[0] });
+        }
+
+        const uuidBorrador = `BORRADOR-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+        const ins = await db.query(
+            `INSERT INTO facturas (
+                uuid, fecha_emision, subtotal, total_descuento, total_iva, total,
+                forma_pago, metodo_pago, uso_cfdi, estado, nota, id_emisor, id_cliente, id_usuario, folio
+            ) VALUES ($1, CURRENT_TIMESTAMP, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, $11, $12, $13)
+             RETURNING id_factura, folio, uuid`,
+            [
+                uuidBorrador,
+                totales.subtotal,
+                totales.descuento,
+                totales.iva,
+                totales.total,
+                formaPago,
+                metodoPago,
+                usoCfdi,
+                ESTADOS_FACTURA.BORRADOR,
+                JSON.stringify(payloadBorrador),
+                idCliente,
+                userId,
+                `B-${Date.now().toString().slice(-6)}`
+            ]
+        );
+        return res.json({ success: true, data: ins.rows[0] });
+    } catch (error) {
+        console.error('Error guardando borrador de factura:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+exports.listarBorradoresFactura = async (req, res) => {
+    try {
+        const result = await db.query(
+            `SELECT f.id_factura, f.folio, f.uuid, f.total, f.metodo_pago, f.fecha_emision,
+                    f.id_cliente, f.id_usuario,
+                    CASE WHEN c.rfc = 'XAXX010101000' THEN 'PUBLICO EN GENERAL' ELSE c.nombre END AS cliente_nombre,
+                    u.nombre AS responsable_nombre
+             FROM facturas f
+             LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+             LEFT JOIN usuarios u ON f.id_usuario = u.id_usuario
+             WHERE UPPER(COALESCE(f.estado,'')) = 'BORRADOR'
+             ORDER BY f.fecha_emision DESC
+             LIMIT 50`
+        );
+        return res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error listando borradores:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+exports.obtenerBorradorFactura = async (req, res) => {
+    try {
+        const idFactura = Number(req.params.id_factura);
+        if (!Number.isFinite(idFactura)) {
+            return res.status(400).json({ success: false, error: 'ID de borrador inválido.' });
+        }
+        const result = await db.query(
+            `SELECT f.*, CASE WHEN c.rfc = 'XAXX010101000' THEN 'PUBLICO EN GENERAL' ELSE c.nombre END AS cliente_nombre
+             FROM facturas f
+             LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+             WHERE f.id_factura = $1 AND UPPER(COALESCE(f.estado,'')) = 'BORRADOR'`,
+            [idFactura]
+        );
+        if (!result.rows.length) {
+            return res.status(404).json({ success: false, error: 'Borrador no encontrado.' });
+        }
+        const row = result.rows[0];
+        let payload = null;
+        try {
+            payload = row.nota ? JSON.parse(row.nota) : null;
+        } catch (e) {
+            payload = null;
+        }
+        return res.json({
+            success: true,
+            data: {
+                id_factura: row.id_factura,
+                folio: row.folio,
+                uuid: row.uuid,
+                cliente_nombre: row.cliente_nombre,
+                total: row.total,
+                metodo_pago: row.metodo_pago,
+                payload
+            }
+        });
+    } catch (error) {
+        console.error('Error obteniendo borrador:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 // OBTENER TODAS LAS FACTURAS
 exports.obtenerFacturas = async (req, res) => {
     try {
@@ -1187,15 +1640,17 @@ exports.obtenerFacturas = async (req, res) => {
                 f.no_certificado_sat,
                 f.folio,
                 f.id_usuario,
-                c.nombre as cliente_nombre,
+                CASE WHEN c.rfc = 'XAXX010101000' THEN 'PUBLICO EN GENERAL' ELSE c.nombre END as cliente_nombre,
                 c.rfc as cliente_rfc,
                 c.tipo as cliente_tipo,
                 c.dias_credito,
                 e.razon_social as emisor_nombre,
-                e.rfc as emisor_rfc
+                e.rfc as emisor_rfc,
+                u.nombre AS responsable_nombre
             FROM facturas f
             LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN emisores e ON f.id_emisor = e.id_emisor
+            LEFT JOIN usuarios u ON f.id_usuario = u.id_usuario
             WHERE 1=1
         `;
 
@@ -1203,12 +1658,12 @@ exports.obtenerFacturas = async (req, res) => {
 
         if (search) {
             queryParams.push(`%${search}%`);
-            query += ` AND (f.folio ILIKE $${queryParams.length} OR c.nombre ILIKE $${queryParams.length} OR f.uuid::text ILIKE $${queryParams.length})`;
+            query += ` AND (f.folio ILIKE $${queryParams.length} OR (CASE WHEN c.rfc = 'XAXX010101000' THEN 'PUBLICO EN GENERAL' ELSE c.nombre END) ILIKE $${queryParams.length} OR f.uuid::text ILIKE $${queryParams.length})`;
         }
 
         if (estado && estado !== 'Estado: Todos') {
             queryParams.push(estado);
-            query += ` AND f.estado = $${queryParams.length}`;
+            query += ` AND UPPER(TRIM(f.estado)) = UPPER(TRIM($${queryParams.length}))`;
         }
 
         if (fecha_inicio) {
@@ -1268,11 +1723,11 @@ exports.obtenerFacturas = async (req, res) => {
 
         if (search) {
             statsParams.push(`%${search}%`);
-            statsWhere += ` AND (f.folio ILIKE $${statsParams.length} OR c.nombre ILIKE $${statsParams.length} OR f.uuid::text ILIKE $${statsParams.length})`;
+            statsWhere += ` AND (f.folio ILIKE $${statsParams.length} OR (CASE WHEN c.rfc = 'XAXX010101000' THEN 'PUBLICO EN GENERAL' ELSE c.nombre END) ILIKE $${statsParams.length} OR f.uuid::text ILIKE $${statsParams.length})`;
         }
         if (estado && estado !== 'Estado: Todos') {
             statsParams.push(estado);
-            statsWhere += ` AND f.estado = $${statsParams.length}`;
+            statsWhere += ` AND UPPER(TRIM(f.estado)) = UPPER(TRIM($${statsParams.length}))`;
         }
         if (fecha_inicio) {
             statsParams.push(fecha_inicio);
@@ -1338,11 +1793,11 @@ exports.obtenerFacturas = async (req, res) => {
 
         // Calcular distribución por estado
         const distributionResult = await db.query(`
-            SELECT f.estado, COUNT(*) as cantidad
+            SELECT f.estado, f.metodo_pago, COUNT(*) as cantidad
             FROM facturas f
             LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
             ${statsWhere}
-            GROUP BY f.estado
+            GROUP BY f.estado, f.metodo_pago
         `, statsParams);
 
         // Filtros para notas de credito relacionados (evitar romper por search/estado de factura)
@@ -1566,7 +2021,21 @@ exports.obtenerFacturas = async (req, res) => {
                 }
             },
             evolucion: evolutionResult.rows.reverse(),
-            distribucion: distributionResult.rows,
+            distribucion: (() => {
+                const acumulado = {};
+                (distributionResult.rows || []).forEach((row) => {
+                    const canonico = normalizarEstadoCanonico({
+                        estadoDb: row.estado,
+                        metodoPago: row.metodo_pago,
+                        esComplemento: false,
+                        compMonto: 0,
+                        total: 0
+                    });
+                    const etiqueta = etiquetaDistribucionEstado(canonico);
+                    acumulado[etiqueta] = (acumulado[etiqueta] || 0) + parseInt(row.cantidad || 0, 10);
+                });
+                return Object.entries(acumulado).map(([estado, cantidad]) => ({ estado, cantidad }));
+            })(),
             kpisFinancieros: {
                 dsoDiasReal,
                 facturasConPagoCapturado,
@@ -1603,36 +2072,36 @@ exports.obtenerFacturas = async (req, res) => {
                 ? Number(factura.total || 0)  // el total del complemento YA es el monto pagado
                 : (complementoMap.get(factura.id_factura) || 0);
 
-            // Determinar estado de pago
-            let estadoPago = 'Pagada';
+            const estadoPago = normalizarEstadoCanonico({
+                estadoDb: factura.estado,
+                metodoPago: factura.metodo_pago,
+                esComplemento,
+                compMonto,
+                total: factura.total
+            });
+
             let montoPagado = factura.total;
             let fechaPago = factura.fecha_emision;
-
-            if (estadoDb.startsWith('CANCELAD')) {
-                estadoPago = 'Cancelada';
+            if (estadoPago === ESTADOS_FACTURA.CANCELADA || estadoPago === ESTADOS_FACTURA.BORRADOR
+                || estadoPago === ESTADOS_FACTURA.TIMBRANDO || estadoPago === ESTADOS_FACTURA.ERROR) {
                 montoPagado = 0;
                 fechaPago = null;
-            } else if (estadoDb.startsWith('PENDIENTE')) {
-                estadoPago = 'Pendiente';
+            } else if (estadoPago === ESTADOS_FACTURA.TIMBRADA) {
                 montoPagado = 0;
                 fechaPago = null;
-            } else if (esComplemento && estadoDb.startsWith('TIMBRAD')) {
-                estadoPago = 'Timbrada';
-            } else if (new Date() > fechaVencimiento && factura.total > 0 && estadoDb.startsWith('TIMBRAD')) {
-                estadoPago = 'Vencida';
-                montoPagado = 0;
-                fechaPago = null;
-            } else if (estadoDb.startsWith('TIMBRAD') && factura.total > 0) {
-                estadoPago = 'Pendiente';
-                montoPagado = 0;
-                fechaPago = null;
+            } else if (estadoPago === ESTADOS_FACTURA.PARCIAL) {
+                montoPagado = compMonto;
+            } else if (estadoPago === ESTADOS_FACTURA.APLICADA && esComplemento) {
+                montoPagado = compMonto;
             }
 
             return {
+                id_factura: factura.id_factura,
                 uuid: factura.uuid,
                 folio: factura.folio || (factura.uuid ? `B-${factura.uuid.substring(0, 4)}` : 'S/F'),
                 contrato: `CONT-${factura.uuid.substring(0, 8)}`,
                 id_usuario: factura.id_usuario,
+                responsable_nombre: factura.responsable_nombre || 'N/A',
                 uso_cfdi: factura.uso_cfdi || '',
                 es_complemento_pago: esComplemento,
                 cliente: {
@@ -1776,7 +2245,7 @@ exports.buscarDocumentoPorFolio = async (req, res) => {
         const searchQuery = `%${query}%`;
         try {
             const factRes = await db.query(
-                `SELECT f.*, c.nombre as cliente_nombre, c.rfc as cliente_rfc
+                `SELECT f.*, CASE WHEN c.rfc = 'XAXX010101000' THEN 'PUBLICO EN GENERAL' ELSE c.nombre END as cliente_nombre, c.rfc as cliente_rfc
                  FROM facturas f
                  LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
                  WHERE f.folio ILIKE $1 OR f.uuid::text ILIKE $1
@@ -2288,20 +2757,26 @@ exports.timbrarNotaCredito = async (req, res) => {
         }
 
         // 7. guardar en base de datos nota de crédito
+        // invoice_id: UUID de la factura origen para trazabilidad directa
+        // Columnas reales del esquema: tax, reason, relation_type, status (no impuestos/motivo_sat/tipo_relacion/estado)
         const insertRes = await db.query(
-            `INSERT INTO credit_notes (uuid, serie, folio, id_cliente, id_factura_origen, subtotal, impuestos, total, motivo_sat, tipo_relacion, estado, created_by, stamped_by, pdf_path, xml_path)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+            `INSERT INTO credit_notes
+                (uuid, folio, customer_id, id_factura_origen, invoice_id,
+                 subtotal, tax, total, reason, relation_type, status,
+                 created_by, stamped_by, pdf_path, xml_path)
+             VALUES ($1,$2,$3,$4,$5::uuid,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+             RETURNING *`,
             [
                 uuidSat,
-                factura.serie || null,
                 uuidSat.substring(0, 10),
                 receptor.id_cliente,
                 creditNote.facturaOrigenId,
+                uuidOrig || null,                       // invoice_id = UUID de la factura origen
                 finalSubtotal,
                 finalIva,
                 finalTotal,
-                creditNote.motivoSat,
-                creditNote.tipoRelacion,
+                creditNote.motivoSat || creditNote.razon || 'Nota de crédito',
+                creditNote.tipoRelacion || '01',
                 'TIMBRADA',
                 req.user?.id_usuario || req.user?.id || null,
                 req.user?.id_usuario || req.user?.id || null,
@@ -2310,6 +2785,19 @@ exports.timbrarNotaCredito = async (req, res) => {
             ]
         );
         const creditNoteRec = insertRes.rows[0];
+
+        // También registrar en tabla de relaciones (credit_note_relations) para trazabilidad completa
+        if (uuidOrig) {
+            try {
+                await db.query(
+                    `INSERT INTO credit_note_relations (credit_note_id, invoice_uuid, relation_type)
+                     VALUES ($1, $2, $3)`,
+                    [creditNoteRec.id, uuidOrig, creditNote.tipoRelacion || '01']
+                );
+            } catch (relErr) {
+                console.warn('[NC] No se pudo insertar en credit_note_relations:', relErr.message);
+            }
+        }
 
         // 8. actualizar ledger y audit
         await db.query(
@@ -2330,13 +2818,31 @@ exports.timbrarNotaCredito = async (req, res) => {
             ['CREAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ facturaOrigen: creditNote.facturaOrigenId, total: finalTotal, credit_note_id: creditNoteRec.id })]
         );
 
+        // Registrar notificación de éxito
+        crearNotificacion({
+            tipo: 'NC_TIMBRADA',
+            mensaje: `Nota de crédito timbrada exitosamente con folio/UUID: ${uuidSat.substring(0, 8)}. Cliente: ${receptor.nombre}. Total: $${finalTotal}`,
+            modulo: 'notas_credito',
+            referencia_tipo: 'nota_credito',
+            referencia_id: uuidSat,
+            id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+            metadata: {
+                folio: uuidSat.substring(0, 8),
+                uuid: uuidSat,
+                total: finalTotal,
+                cliente: receptor.nombre,
+                rfc: receptor.rfc,
+                motivo: creditNote.motivoSat || creditNote.razon
+            }
+        }).catch(err => console.error('[DEBUG] Error al crear notificación:', err));
+
         res.json({ 
             success: true, 
             message: 'Nota de crédito timbrada correctamente', 
             data: { 
                 uuid: uuidSat, 
                 total: finalTotal, 
-                xml: facturamaData.Cfdi,
+                xml: facturamaData.Cfdi || facturamaData.Xml,
                 pdfPath: nombreArchivoPdf,
                 xmlPath: nombreArchivoXml,
                 motivo: creditNote.motivoSat
@@ -2344,6 +2850,27 @@ exports.timbrarNotaCredito = async (req, res) => {
         });
     } catch (error) {
         console.error('timbrarNotaCredito error', error);
+        
+        let errorMessage = error.message;
+        if (error.response) {
+            errorMessage = `Error de Facturama: ${error.response.data.Message || error.response.data}`;
+        }
+        
+        // Registrar notificación de error
+        crearNotificacion({
+            tipo: 'ERROR_TIMBRADO',
+            mensaje: `Error al timbrar nota de crédito para cliente ${receptor?.nombre || 'Desconocido'}: ${errorMessage.substring(0, 200)}`,
+            modulo: 'notas_credito',
+            referencia_tipo: 'nota_credito',
+            referencia_id: creditNote?.facturaOrigenId,
+            id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+            metadata: {
+                error: errorMessage,
+                cliente: receptor?.nombre,
+                rfc: receptor?.rfc
+            }
+        }).catch(err => console.error('[DEBUG] Error al crear notificación de error:', err));
+
         res.status(500).json({ success: false, error: 'Error interno al timbrar nota de crédito' });
     }
 };
@@ -2353,9 +2880,9 @@ exports.obtenerNotasCredito = async (req, res) => {
         const { cliente, estado } = req.query;
         let q = 'SELECT * FROM credit_notes WHERE 1=1';
         const params = [];
-        if (cliente) { params.push(cliente); q += ` AND id_cliente = $${params.length}`; }
-        if (estado) { params.push(estado); q += ` AND estado = $${params.length}`; }
-        q += ' ORDER BY fecha_creacion DESC';
+        if (cliente) { params.push(cliente); q += ` AND customer_id = $${params.length}`; }
+        if (estado) { params.push(estado.toUpperCase()); q += ` AND UPPER(status) = $${params.length}`; }
+        q += ' ORDER BY created_at DESC';
         const result = await db.query(q, params);
         res.json({ success: true, data: result.rows });
     } catch (error) {
@@ -2382,14 +2909,61 @@ exports.cancelarNotaCredito = async (req, res) => {
         const { motivo } = req.body;
         if (!motivo) return res.status(400).json({ success: false, error: 'Motivo de cancelación es requerido' });
         // TODO: Llamar a API de cancelación de CFDI
-        await db.query('UPDATE credit_notes SET estado=$1, canceled_by=$2, fecha_cancelacion=CURRENT_TIMESTAMP WHERE id=$3', ['CANCELADA', req.user?.id_usuario || req.user?.id || null, id]);
+        const userId = req.user?.id_usuario || req.user?.id || null;
+        await db.query(
+            'UPDATE credit_notes SET status=$1, updated_by=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3',
+            ['CANCELADA', userId, id]
+        );
         // audit
         await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
-            ['CANCELAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ motivo, credit_note_id: id })]
+            ['CANCELAR_NC', 'credit_notes', null, userId, JSON.stringify({ motivo, credit_note_id: id })]
         );
+
+        // Obtener el UUID o datos de la NC para la notificación
+        let ncUuid = '';
+        try {
+            const ncQuery = await db.query('SELECT uuid FROM credit_notes WHERE id = $1', [id]);
+            ncUuid = ncQuery.rows[0]?.uuid || '';
+        } catch (_) {}
+
+        // Registrar notificación de éxito
+        crearNotificacion({
+            tipo: 'NC_CANCELADA',
+            mensaje: `Nota de crédito cancelada exitosamente con ID: ${id}. Motivo: ${motivo}`,
+            modulo: 'notas_credito',
+            referencia_tipo: 'nota_credito',
+            referencia_id: ncUuid || id,
+            id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+            metadata: {
+                id,
+                uuid: ncUuid,
+                motivo
+            }
+        }).catch(err => console.error('[DEBUG] Error al crear notificación:', err));
+
         res.json({ success: true, message: 'Nota de crédito cancelada' });
     } catch (error) {
         console.error('cancelarNotaCredito error', error);
+        
+        let errorMessage = error.message;
+        if (error.response) {
+            errorMessage = error.response.data.Message || error.response.data;
+        }
+
+        // Registrar notificación de error
+        crearNotificacion({
+            tipo: 'ERROR_TIMBRADO',
+            mensaje: `Error al cancelar nota de crédito con ID ${id}: ${String(errorMessage).substring(0, 200)}`,
+            modulo: 'notas_credito',
+            referencia_tipo: 'nota_credito',
+            referencia_id: id,
+            id_usuario_accion: req.user?.id_usuario || req.user?.id || null,
+            metadata: {
+                id,
+                error: errorMessage
+            }
+        }).catch(err => console.error('[DEBUG] Error al crear notificación de error:', err));
+
         res.status(500).json({ success: false, error: 'Error interno' });
     }
 };
@@ -2397,10 +2971,14 @@ exports.cancelarNotaCredito = async (req, res) => {
 exports.aprobarNotaCredito = async (req, res) => {
     try {
         const { id } = req.params;
-        await db.query('UPDATE credit_notes SET estado=$1, approved_by=$2, fecha_aprobacion=CURRENT_TIMESTAMP WHERE id=$3', ['Aprobada', req.user?.id_usuario || req.user?.id || null, id]);
+        const userId = req.user?.id_usuario || req.user?.id || null;
+        await db.query(
+            'UPDATE credit_notes SET status=$1, updated_by=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3',
+            ['APLICADA', userId, id]
+        );
         // audit
         await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
-            ['APROBAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ credit_note_id: id })]
+            ['APROBAR_NC', 'credit_notes', null, userId, JSON.stringify({ credit_note_id: id })]
         );
         res.json({ success: true, message: 'Nota de crédito aprobada' });
     } catch (error) {

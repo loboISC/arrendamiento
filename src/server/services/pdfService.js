@@ -63,9 +63,24 @@ class PDFService {
             const totalLetra = this.convertirTotalALetra(facturaData.totales.total);
             const esEgreso = facturaData.comprobante?.tipoComprobante === 'E'
                 || facturaData.isCreditNote === true;
+            const tieneRelacionados = !!(facturaData.relacionados && 
+                (facturaData.relacionados.uuid || 
+                 (Array.isArray(facturaData.relacionados.foliosFiscales) && facturaData.relacionados.foliosFiscales.length > 0)));
             const tipoRelacionClave = facturaData.relacionados?.tipoRelacion || '01';
             const tipoRelacionEtiqueta = tipoRelacionTexto(tipoRelacionClave);
-            const folioFiscalRelacionado = facturaData.relacionados?.uuid || 'PENDIENTE';
+            
+            let folioFiscalRelacionado = 'PENDIENTE';
+            if (facturaData.relacionados) {
+                if (Array.isArray(facturaData.relacionados.foliosFiscales)) {
+                    folioFiscalRelacionado = facturaData.relacionados.foliosFiscales.join(', ');
+                } else if (Array.isArray(facturaData.relacionados.uuid)) {
+                    folioFiscalRelacionado = facturaData.relacionados.uuid.join(', ');
+                } else if (typeof facturaData.relacionados.uuid === 'string') {
+                    folioFiscalRelacionado = facturaData.relacionados.uuid;
+                } else if (typeof facturaData.relacionados.foliosFiscales === 'string') {
+                    folioFiscalRelacionado = facturaData.relacionados.foliosFiscales;
+                }
+            }
 
             const replacements = {
                 '{{logo_base64}}': logoBase64 || 'assets/images/logo-demo.jpg',
@@ -104,7 +119,10 @@ class PDFService {
             };
 
             // 4. Construcción de Páginas Inteligente
-            const conceptos = [...facturaData.conceptos];
+            const conceptos = Array.isArray(facturaData.conceptos) ? [...facturaData.conceptos] : [];
+            if (conceptos.length === 0) {
+                console.warn('[PDFService] facturaData.conceptos vacío; el PDF no mostrará tabla de conceptos.');
+            }
             let pagesHtml = '';
             let currentPageIndex = 0;
 
@@ -161,12 +179,12 @@ class PDFService {
                             <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
                                 <div>
                                     <div style="font-size: 9px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.3;">
-                                        <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
+                                        <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> ${replacements['{{total_letra}}']}<br/><br/>
                                         ${facturaData.comprobante?.tipoComprobante === 'E' ? `
                                             <b>CFDI DE EGRESO / NOTA DE CREDITO</b><br/>
                                             Este comprobante acredita saldo de la factura relacionada y no cancela el CFDI origen.
                                         ` : `
-                                            DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
+                                            DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} ${replacements['{{total_letra}}']} VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
                                             <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
                                         `}
                                     </div>
@@ -189,7 +207,9 @@ class PDFService {
                     // LÓGICA DE ESPACIO PARA TOTALES:
                     // Si es P1 (con Receptor), solo caben totales si hay 4 conceptos o menos.
                     // Si es otra página, caben si hay 7 conceptos o menos.
-                    const maxConceptosMismaPagina = isFirstPage ? 5 : 7;
+                    const maxConceptosMismaPagina = isFirstPage
+                        ? (tieneRelacionados ? 3 : 5)
+                        : (tieneRelacionados ? 5 : 7);
 
                     if (chunk.length <= maxConceptosMismaPagina) {
                         closureHtml = `<div style="margin-top: 20px; padding-top: 10px;">${closureContent}</div>`;
@@ -251,7 +271,7 @@ class PDFService {
                 ` : '<div style="height: 10px;"></div>';
 
                 // Pago y relación SAT: debajo de la tabla de conceptos (última página de conceptos)
-                const pagoRelacionadosHtml = isLastChunk && esEgreso ? `
+                const pagoRelacionadosHtml = isLastChunk && !forceNewPageForTotals && (esEgreso || tieneRelacionados) ? `
                     <div style="margin-top: 10px; margin-bottom: 8px; padding: 8px 10px; border: 1.2px solid #1e3a8a; border-radius: 4px; background: #f8fafc;">
                         <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a; display: block; margin-bottom: 6px;">Información de pago y documento relacionado</span>
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; font-size: 9px;">
@@ -279,9 +299,13 @@ class PDFService {
                     </div>
                 ` : '';
 
+                const pageBreakStyle = (isLastChunk && !forceNewPageForTotals)
+                    ? 'page-break-after: auto;'
+                    : 'page-break-after: always;';
+
                 pagesHtml += `
-                    <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
-                        <div style="flex: 1;">
+                    <div class="page-container" style="padding: 0 10mm; width: 100%; box-sizing: border-box; ${pageBreakStyle}">
+                        <div>
                             ${receptorHtml}
                             <table class="concepts-table" style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                                 <thead>
@@ -305,7 +329,7 @@ class PDFService {
 
                 // Si forzamos página nueva para totales, agregarla
                 if (forceNewPageForTotals) {
-                    const pagoEnPaginaTotales = esEgreso ? `
+                    const pagoEnPaginaTotales = esEgreso || tieneRelacionados ? `
                     <div style="margin-top: 10px; margin-bottom: 8px; padding: 8px 10px; border: 1.2px solid #1e3a8a; border-radius: 4px; background: #f8fafc;">
                         <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a; display: block; margin-bottom: 6px;">Información de pago y documento relacionado</span>
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; font-size: 9px;">
@@ -317,8 +341,8 @@ class PDFService {
                         </div>
                     </div>` : '';
                     pagesHtml += `
-                        <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
-                            <div style="flex: 1;">
+                        <div class="page-container" style="padding: 0 10mm; width: 100%; box-sizing: border-box; page-break-after: auto;">
+                            <div>
                                 <div style="height: 20px;"></div>
                                 ${pagoEnPaginaTotales}
                                 ${closureContent}
@@ -337,10 +361,11 @@ class PDFService {
 
             browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
+            await page.setViewport({ width: 816, height: 1056, deviceScaleFactor: 1 });
             const publicPath = this.publicDir;
             const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
             const htmlWithBase = html.replace('<head>', `<head><base href="${fileBaseUrl}">`);
-            await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
+            await page.setContent(htmlWithBase, { waitUntil: 'networkidle0', timeout: 60000 });
 
             // 6. Header NATIVO de Puppeteer
             const headerTemplate = `

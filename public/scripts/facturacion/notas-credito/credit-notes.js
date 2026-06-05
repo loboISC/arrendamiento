@@ -14,6 +14,7 @@
     usoCFDI: 'G02',
     usarClaveServicios: true,
     descripcionConcepto: '',
+    totalesOverride: null,
     formaPago: '03',
     metodoPago: 'PUE',
     configuracionInicial: false,
@@ -62,8 +63,11 @@
     paginaActual: 1,
     tamanoPagina: 15,
     totalRegistros: 0,
-    totalPaginas: 1
+    totalPaginas: 1,
+    filtros: { search: '', status: '', dateFrom: '', dateTo: '' }
   };
+  let debounceHistorial = null;
+  let serviciosInventarioNCCargados = false;
 
   function activarTabFacturacion(seccion) {
     document.querySelectorAll('.section-tabs .tab-btn').forEach((btn) => {
@@ -191,6 +195,59 @@
     cargarHistorialNotas(paginaNormalizada);
   }
 
+  function escaparHtml(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[caracter]));
+  }
+
+  function abreviarUuid(uuid) {
+    const texto = String(uuid || '').trim();
+    if (texto.length <= 13) return texto || '--';
+    return `${texto.slice(0, 8)}...${texto.slice(-4)}`;
+  }
+
+  function esUuidCopiable(uuid) {
+    const texto = String(uuid || '').trim();
+    return texto.length > 0 && !texto.toUpperCase().startsWith('BORRADOR');
+  }
+
+  function renderizarUuidHistorial(uuid) {
+    const texto = String(uuid || '').trim();
+    if (!esUuidCopiable(texto)) {
+      return '<span style="color:#94a3b8;">--</span>';
+    }
+    return `
+      <span title="${escaparHtml(texto)}" style="font-family:monospace;font-size:0.82rem;">${escaparHtml(abreviarUuid(texto))}</span>
+      <button type="button" class="nc-btn nc-btn-secundario" data-nc-copiar-uuid="${escaparHtml(texto)}" title="Copiar UUID" style="padding:6px 8px;">
+        <i class="fa fa-copy"></i>
+      </button>
+    `;
+  }
+
+  async function copiarTextoPortapapeles(texto) {
+    const valor = String(texto || '').trim();
+    if (!valor) return false;
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(valor);
+      return true;
+    }
+    const inputTemporal = document.createElement('textarea');
+    inputTemporal.value = valor;
+    inputTemporal.setAttribute('readonly', '');
+    inputTemporal.style.position = 'fixed';
+    inputTemporal.style.opacity = '0';
+    document.body.appendChild(inputTemporal);
+    inputTemporal.select();
+    const copiado = document.execCommand('copy');
+    document.body.removeChild(inputTemporal);
+    return copiado;
+  }
+
   function renderizarFilasHistorial(items) {
     return (items || []).map((nc) => {
       const status = String(nc.status || '').toUpperCase();
@@ -241,12 +298,15 @@
         ? `Borrador (${nc.invoice_folio_origen || 'S/F'})`
         : nc.folio || (nc.uuid || '').substring(0, 8) || nc.id;
       const cliente = nc.customer_name || nc.razon_social || 'Cliente';
+      const responsable = nc.stamped_by_name || nc.created_by_name || 'Sin responsable';
 
       return `
         <tr>
           <td>${badge}</td>
-          <td>${folio}</td>
-          <td>${cliente}</td>
+          <td>${escaparHtml(folio)}</td>
+          <td style="min-width:150px;">${renderizarUuidHistorial(nc.uuid)}</td>
+          <td>${escaparHtml(cliente)}</td>
+          <td>${escaparHtml(responsable)}</td>
           <td>${total}</td>
           <td class="nc-historial-acciones">
             ${acciones.join(' ')}
@@ -354,6 +414,49 @@
 
   function obtenerDetalleRelacion(clave) {
     return window.CatalogosSATNotasCredito.tiposRelacion.find((t) => t.clave === clave) || null;
+  }
+
+  function normalizarServicioInventarioNC(servicio) {
+    const clave = String(servicio?.clave_sat_servicios || '').trim();
+    const nombre = String(servicio?.nombre_servicio || '').trim();
+    if (!clave || !nombre) return null;
+    return {
+      clave,
+      descripcion: nombre,
+      servicio_id: servicio.id_servicio || '',
+      nombre_servicio: nombre,
+      precio_unitario: Number(servicio.precio_unitario || 0),
+      clave_unidad: String(servicio.clave_unidad || 'E48').trim() || 'E48'
+    };
+  }
+
+  async function cargarServiciosInventarioNC() {
+    if (serviciosInventarioNCCargados) return;
+    try {
+      const respuesta = await fetch('/api/servicios', {
+        headers: { Authorization: `Bearer ${ui.token()}` }
+      });
+      const servicios = await respuesta.json().catch(() => []);
+      if (!respuesta.ok || !Array.isArray(servicios)) throw new Error('No se pudieron cargar servicios.');
+
+      const catalogoBase = window.CatalogosSATNotasCredito.conceptosFrecuentes || [];
+      const vistos = new Set(catalogoBase.map((item) => `${item.clave}|${item.descripcion}`.toLowerCase()));
+      const serviciosCatalogo = servicios
+        .map(normalizarServicioInventarioNC)
+        .filter(Boolean)
+        .filter((item) => {
+          const key = `${item.clave}|${item.descripcion}`.toLowerCase();
+          if (vistos.has(key)) return false;
+          vistos.add(key);
+          return true;
+        });
+
+      window.CatalogosSATNotasCredito.conceptosFrecuentes = [...catalogoBase, ...serviciosCatalogo];
+      serviciosInventarioNCCargados = true;
+    } catch (error) {
+      serviciosInventarioNCCargados = true;
+      console.warn('[NotasCredito] No se pudieron cargar servicios de inventario:', error.message);
+    }
   }
 
   function aplicarPagoDesdeFactura(factura) {
@@ -464,6 +567,15 @@
       retenciones: ui.numero(retenciones),
       total: ui.numero(subtotal + iva - retenciones)
     };
+
+    if (estado.totalesOverride) {
+      estado.totales = {
+        subtotal: ui.numero(estado.totalesOverride.subtotal),
+        iva: ui.numero(estado.totalesOverride.iva),
+        retenciones: ui.numero(estado.totalesOverride.retenciones || 0),
+        total: ui.numero(estado.totalesOverride.total)
+      };
+    }
   }
 
   function obtener(id) { return document.getElementById(id); }
@@ -546,6 +658,10 @@
         page: String(paginaSolicitada),
         limit: String(estadoHistorial.tamanoPagina)
       });
+      if (estadoHistorial.filtros.search) params.set('search', estadoHistorial.filtros.search);
+      if (estadoHistorial.filtros.status) params.set('status', estadoHistorial.filtros.status);
+      if (estadoHistorial.filtros.dateFrom) params.set('dateFrom', estadoHistorial.filtros.dateFrom);
+      if (estadoHistorial.filtros.dateTo) params.set('dateTo', estadoHistorial.filtros.dateTo);
       const respuesta = await api(`/api/credit-notes?${params.toString()}`);
       const items = Array.isArray(respuesta?.items)
         ? respuesta.items
@@ -574,13 +690,41 @@
             </div>
           </div>
           <div class="nc-card-cuerpo">
+            <div class="nc-historial-filtros" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end;margin-bottom:14px;">
+              <div class="field-group" style="margin:0;">
+                <label for="nc-historial-busqueda">Buscar</label>
+                <input id="nc-historial-busqueda" class="timb-input" type="search" placeholder="Folio, UUID, cliente o responsable" value="${escaparHtml(estadoHistorial.filtros.search)}" autocomplete="off">
+              </div>
+              <div class="field-group" style="margin:0;">
+                <label for="nc-historial-estado">Estado</label>
+                <select id="nc-historial-estado" class="timb-input">
+                  <option value="">Todos</option>
+                  ${['BORRADOR', 'TIMBRANDO', 'TIMBRADA', 'APLICADA', 'PARCIAL', 'CANCELADA', 'ERROR'].map((estadoOpt) => `
+                    <option value="${estadoOpt}" ${estadoHistorial.filtros.status === estadoOpt ? 'selected' : ''}>${estadoOpt}</option>
+                  `).join('')}
+                </select>
+              </div>
+              <div class="field-group" style="margin:0;">
+                <label for="nc-historial-fecha-desde">Desde</label>
+                <input id="nc-historial-fecha-desde" class="timb-input" type="date" value="${escaparHtml(estadoHistorial.filtros.dateFrom)}">
+              </div>
+              <div class="field-group" style="margin:0;">
+                <label for="nc-historial-fecha-hasta">Hasta</label>
+                <input id="nc-historial-fecha-hasta" class="timb-input" type="date" value="${escaparHtml(estadoHistorial.filtros.dateTo)}">
+              </div>
+              <button id="nc-historial-limpiar" type="button" class="nc-btn nc-btn-secundario">
+                <i class="fa fa-eraser"></i> Limpiar
+              </button>
+            </div>
             <div class="nc-tabla-wrap">
               <table class="nc-tabla nc-tabla-historial">
                 <thead>
                   <tr>
                     <th>Estado</th>
                     <th>Folio</th>
+                    <th>UUID</th>
                     <th>Cliente</th>
+                    <th>Responsable</th>
                     <th>Total</th>
                     <th></th>
                   </tr>
@@ -588,7 +732,7 @@
                 <tbody>
                   ${filas || `
                     <tr>
-                      <td colspan="5" class="nc-tabla-vacia">
+                      <td colspan="7" class="nc-tabla-vacia">
                         <span>No hay notas de crédito registradas todavía.</span>
                       </td>
                     </tr>
@@ -687,6 +831,7 @@
 
     const desglose = obtenerDesgloseFiscalFactura(factura);
     estado.tasaIvaFactura = desglose.tasaIva;
+    estado.totalesOverride = null;
     const descripcion = estado.descripcionConcepto
       || descripcionesPorMotivo[estado.motivo]
       || `Acreditación de factura ${factura.folio}`;
@@ -722,23 +867,12 @@
 
     const desglose = obtenerDesgloseFiscalFactura(factura);
     estado.tasaIvaFactura = desglose.tasaIva;
-    const descripcion = estado.descripcionConcepto
-      || descripcionesPorMotivo[estado.motivo]
-      || `Acreditación conforme factura ${factura.folio}`;
-
-    estado.conceptos = [{
-      product_id: null,
-      descripcion,
-      cantidad: 1,
-      precio_unitario: desglose.subtotal,
-      descuento: 0,
-      descuento_porcentaje: 0,
-      tasa_iva: desglose.tasaIva,
-      iva_manual: desglose.iva,
-      sat_product_key: estado.usarClaveServicios ? '84111506' : '01010101',
-      sat_unit_key: 'ACT',
-      unidad: nombreUnidadPorClave('ACT')
-    }];
+    estado.totalesOverride = {
+      subtotal: desglose.subtotal,
+      iva: desglose.iva,
+      retenciones: 0,
+      total: desglose.total
+    };
     renderizar();
     ui.aviso(
       'Montos exactos aplicados',
@@ -794,7 +928,15 @@
       estado.conceptoFormulario.sat_unit_key = valor;
       estado.conceptoFormulario.unidad = nombreUnidadPorClave(valor);
     } else if (campo === 'sat_product_key') {
+      const opcion = input.selectedOptions[0];
       estado.conceptoFormulario.sat_product_key = valor;
+      if (opcion?.dataset.ncServiceId) {
+        const unidadSat = opcion.dataset.ncServiceUnit || 'E48';
+        estado.conceptoFormulario.precio_unitario = Number(opcion.dataset.ncServicePrice || 0);
+        estado.conceptoFormulario.sat_unit_key = unidadSat;
+        estado.conceptoFormulario.unidad = nombreUnidadPorClave(unidadSat);
+        estado.conceptoFormulario.product_id = null;
+      }
     } else {
       estado.conceptoFormulario[campo] = valor;
     }
@@ -998,6 +1140,27 @@
         estado.filtros.search = obtener('nc-busqueda-factura')?.value || '';
         estado.filtros.fecha  = obtener('nc-fecha-factura')?.value   || '';
         await buscarFacturas().catch((e) => ui.aviso('Búsqueda', e.message, 'error'));
+      }
+
+      if (obj.id === 'nc-historial-limpiar') {
+        estadoHistorial.filtros = { search: '', status: '', dateFrom: '', dateTo: '' };
+        await cargarHistorialNotas(1);
+      }
+
+      if (obj.dataset.ncCopiarUuid) {
+        try {
+          await copiarTextoPortapapeles(obj.dataset.ncCopiarUuid);
+          const icono = obj.querySelector('i');
+          if (icono) icono.className = 'fa fa-check';
+          setTimeout(() => { if (icono) icono.className = 'fa fa-copy'; }, 1200);
+        } catch (e) {
+          ui.aviso('Copiar UUID', 'No se pudo copiar el UUID.', 'error');
+        }
+      }
+
+      if (obj.dataset.ncConceptIndex !== undefined) {
+        const item = resultadosConceptosInventarioNC[Number(obj.dataset.ncConceptIndex)];
+        aplicarConceptoInventarioNC(item);
       }
 
       if (obj.dataset.ncGenerar) seleccionarFactura(obj.dataset.ncGenerar);
@@ -1273,9 +1436,20 @@
         estado.filtros.search = ev.target.value || '';
         await buscarFacturas().catch((e) => ui.aviso('Búsqueda', e.message, 'error'));
       }
+      if (ev.key === 'Enter' && ev.target.id === 'nc-historial-busqueda') {
+        clearTimeout(debounceHistorial);
+        estadoHistorial.filtros.search = ev.target.value.trim();
+        await cargarHistorialNotas(1);
+      }
     });
 
     document.addEventListener('input', (ev) => {
+      if (ev.target.id === 'nc-form-descripcion') {
+        if (estado.conceptoFormulario) {
+          estado.conceptoFormulario.descripcion = ev.target.value;
+        }
+        return;
+      }
       if (ev.target.dataset.ncFormCampo) actualizarCampoFormularioConcepto(ev.target);
       if (ev.target.dataset.ncCampo)            actualizarConcepto(ev.target);
       if (ev.target.id === 'nc-descripcion-concepto') {
@@ -1286,6 +1460,20 @@
             || '';
         }
         renderizar();
+      }
+      if (ev.target.id === 'nc-historial-busqueda') {
+        clearTimeout(debounceHistorial);
+        debounceHistorial = setTimeout(() => {
+          estadoHistorial.filtros.search = ev.target.value.trim();
+          cargarHistorialNotas(1);
+        }, 350);
+      }
+      if (ev.target.dataset.ncConceptSearch) {
+        clearTimeout(debounceConceptosInventario);
+        const valor = ev.target.value.trim();
+        debounceConceptosInventario = setTimeout(() => {
+          buscarConceptosInventarioNC(valor);
+        }, 300);
       }
     });
 
@@ -1339,6 +1527,21 @@
       if (ev.target.name === 'nc-tipo-aplicacion' && window.ComponenteAplicacionCobranzaNC) {
         window.ComponenteAplicacionCobranzaNC.actualizarUiOpciones();
       }
+
+      if (ev.target.id === 'nc-historial-estado') {
+        estadoHistorial.filtros.status = ev.target.value;
+        cargarHistorialNotas(1);
+      }
+
+      if (ev.target.id === 'nc-historial-fecha-desde') {
+        estadoHistorial.filtros.dateFrom = ev.target.value;
+        cargarHistorialNotas(1);
+      }
+
+      if (ev.target.id === 'nc-historial-fecha-hasta') {
+        estadoHistorial.filtros.dateTo = ev.target.value;
+        cargarHistorialNotas(1);
+      }
     });
 
     document.querySelectorAll('.section-tabs .tab-btn').forEach((btn) => {
@@ -1356,5 +1559,6 @@
     if (!obtener('notas-credito-app')) return;
     registrarEventos();
     renderizar();
+    cargarServiciosInventarioNC().then(() => renderizar());
   });
 })();

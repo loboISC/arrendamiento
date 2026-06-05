@@ -1,0 +1,1427 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model accesorios {
+  id_equipo             Int              @id(map: "equipos_pkey") @default(autoincrement())
+  nombre                String           @db.VarChar(120)
+  clave                 String           @unique(map: "idx_accesorios_clave_unique") @db.VarChar(40)
+  peso                  Decimal?         @db.Decimal(8, 2)
+  garantia              Decimal?         @db.Decimal(12, 2)
+  descripcion           String?
+  imagen                Bytes?
+  venta                 Boolean?         @default(false)
+  renta                 Boolean?         @default(false)
+  estado                String?          @default("Disponible") @db.VarChar(30)
+  ubicacion             String?          @db.VarChar(120)
+  condicion             String?          @db.VarChar(30)
+  tarifa_dia            Decimal?         @db.Decimal(10, 2)
+  proximo_mantenimiento DateTime?        @db.Date
+  componentes           Json?
+  categoria             String?          @db.VarChar(100)
+  stock                 Int?             @default(1)
+  precio_unitario       Decimal?         @db.Decimal(12, 2)
+  tipo                  String?          @db.VarChar(10)
+  tarifa                Decimal?         @default(0) @db.Decimal(14, 2)
+  analisis              analisis[]
+  componentes           componentes[]
+  notificaciones        notificaciones[]
+}
+
+model almacenes {
+  id_almacen     Int            @id @default(autoincrement())
+  nombre_almacen String         @unique @db.VarChar(100)
+  ubicacion      String?
+  direccion      String?
+  telefono       String?        @db.VarChar(20)
+  cotizaciones   cotizaciones[]
+  productos      productos[]
+}
+
+model analisis {
+  id_analisis    Int         @id @default(autoincrement())
+  tipo           String?     @db.VarChar(40)
+  fecha_inicio   DateTime?   @db.Date
+  fecha_fin      DateTime?   @db.Date
+  id_accesorio   Int?
+  id_cliente     Int?
+  id_contrato    Int?
+  resultado      Json?
+  generado_por   String?     @db.VarChar(80)
+  fecha_generado DateTime?   @default(now()) @db.Timestamp(6)
+  descripcion    String?
+  clientes       clientes?   @relation(fields: [id_cliente], references: [id_cliente], onUpdate: NoAction)
+  accesorios     accesorios? @relation(fields: [id_accesorio], references: [id_equipo], onUpdate: NoAction, map: "analisis_id_equipo_fkey")
+}
+
+model audit_financial_events {
+  id          Int       @id @default(autoincrement())
+  evento      String?   @db.VarChar(100)
+  tabla       String?   @db.VarChar(100)
+  registro_id Int?
+  usuario_id  Int?
+  detalles    Json?
+  fecha       DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model categorias {
+  id_categoria     Int             @id @default(autoincrement())
+  nombre_categoria String          @unique @db.VarChar(50)
+  productos        productos[]
+  subcategorias    subcategorias[]
+}
+
+model cliente_notificaciones {
+  id                Int       @id @default(autoincrement())
+  cliente_id        Int?      @unique
+  email             String?   @db.VarChar(255)
+  telefono          String?   @db.VarChar(20)
+  preferencia_sms   Boolean?  @default(true)
+  preferencia_email Boolean?  @default(true)
+  preferencia_push  Boolean?  @default(false)
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  updated_at        DateTime? @default(now()) @db.Timestamp(6)
+  clientes          clientes? @relation(fields: [cliente_id], references: [id_cliente], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([cliente_id], map: "idx_cliente_notif")
+}
+
+model cliente_push_subscriptions {
+  id         Int       @id @default(autoincrement())
+  cliente_id Int?
+  endpoint   String    @unique
+  p256dh     String    @db.VarChar(150)
+  auth       String    @db.VarChar(150)
+  user_agent String?
+  activa     Boolean?  @default(true)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  clientes   clientes? @relation(fields: [cliente_id], references: [id_cliente], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([activa], map: "idx_push_sub_activa")
+  @@index([cliente_id], map: "idx_push_sub_cliente")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model clientes {
+  id_cliente                 Int                          @id @default(autoincrement())
+  nombre                     String                       @db.VarChar(120)
+  tipo                       String                       @db.VarChar(30)
+  contacto                   String?                      @db.VarChar(80)
+  email                      String?                      @db.VarChar(120)
+  telefono                   String?                      @db.VarChar(30)
+  direccion                  String?                      @db.VarChar(200)
+  nota                       String?
+  fecha_registro             DateTime?                    @default(now()) @db.Timestamp(6)
+  rfc                        String?                      @db.VarChar(13)
+  regimen_fiscal             String?                      @db.VarChar(3)
+  codigo_postal              String?                      @db.VarChar(5)
+  validado_sat               Boolean?                     @default(false)
+  rating                     Int?                         @default(1)
+  empresa                    String?                      @db.VarChar(255)
+  telefono_alt               String?                      @db.VarChar(20)
+  sitio_web                  String?                      @db.VarChar(255)
+  nit                        String?                      @db.VarChar(50)
+  segmento                   String?                      @db.VarChar(100)
+  limite_credito             Decimal?                     @default(0.00) @db.Decimal(15, 2)
+  deuda_actual               Decimal?                     @default(0.00) @db.Decimal(15, 2)
+  terminos_pago              String?                      @db.VarChar(100)
+  metodo_pago                String?                      @db.VarChar(100)
+  cal_general                Int?
+  cal_pago                   Int?
+  cal_comunicacion           Int?
+  cal_equipos                Int?
+  cal_satisfaccion           Int?
+  fecha_evaluacion           DateTime?                    @db.Date
+  notas_evaluacion           String?
+  notas_generales            String?
+  atencion_nombre            String?                      @db.VarChar(255)
+  tipo_cliente               String?                      @db.VarChar(100)
+  ciudad                     String?                      @db.VarChar(255)
+  proyectos                  Int?                         @default(0)
+  valor_total                Decimal?                     @default(0.00) @db.Decimal(15, 2)
+  fecha_creacion             DateTime?                    @default(now()) @db.Timestamp(6)
+  estado                     String?                      @default("Activo") @db.VarChar(50)
+  numero_cliente             String?                      @db.VarChar(50)
+  clave                      String?                      @db.VarChar(50)
+  notificar                  Boolean?                     @default(false)
+  representante              String?                      @db.VarChar(255)
+  curp                       String?                      @db.VarChar(18)
+  celular                    String?                      @db.VarChar(30)
+  comentario                 String?
+  numero_precio              Int?                         @default(1)
+  dias_credito               Int?                         @default(30)
+  grupo_entero               Int?                         @default(0)
+  fact_rfc                   String?                      @db.VarChar(13)
+  fact_iucr                  String?                      @db.VarChar(50)
+  razon_social               String?                      @db.VarChar(255)
+  fact_curp                  String?                      @db.VarChar(18)
+  uso_cfdi                   String?                      @db.VarChar(3)
+  domicilio                  String?                      @db.VarChar(200)
+  numero_ext                 String?                      @db.VarChar(20)
+  numero_int                 String?                      @db.VarChar(20)
+  colonia                    String?                      @db.VarChar(100)
+  localidad                  String?                      @db.VarChar(255)
+  estado_direccion           String?                      @db.VarChar(100)
+  pais                       String?                      @default("M├ëXICO") @db.VarChar(100)
+  aplican_retenciones        Boolean?                     @default(false)
+  desglosar_ieps             Boolean?                     @default(false)
+  analisis                   analisis[]
+  cliente_notificaciones     cliente_notificaciones?
+  cliente_push_subscriptions cliente_push_subscriptions[]
+  contratos                  contratos[]
+  credit_notes               credit_notes[]
+  customer_ledger            customer_ledger[]
+  encuestas_respuestas       encuestas_respuestas[]
+  encuestas_satisfaccion     encuestas_satisfaccion[]
+  encuestas_satisfaccionsg   encuestas_satisfaccionsg[]
+  facturas                   facturas[]
+  logistica_asignaciones     logistica_asignaciones[]
+  notificaciones_historial   notificaciones_historial[]
+
+  @@index([fact_rfc], map: "idx_clientes_fact_rfc")
+  @@index([numero_cliente], map: "idx_clientes_numero_cliente")
+  @@index([rating], map: "idx_clientes_rating")
+}
+
+model componentes {
+  id_componente Int         @id @default(autoincrement())
+  id_equipo     Int?
+  nombre        String      @db.VarChar(120)
+  clave         String?     @db.VarChar(40)
+  partida       String?     @db.VarChar(20)
+  peso          Decimal?    @db.Decimal(8, 2)
+  garantia      Decimal?    @db.Decimal(12, 2)
+  cantidad      Int?
+  descripcion   String?
+  imagen_url    String?
+  accesorios    accesorios? @relation(fields: [id_equipo], references: [id_equipo], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model conceptos_factura {
+  id_concepto       Int      @id @default(autoincrement())
+  id_factura        Int
+  clave_prod_serv   String   @db.VarChar(8)
+  no_identificacion String?  @db.VarChar(50)
+  cantidad          Decimal  @db.Decimal(18, 4)
+  clave_unidad      String   @db.VarChar(3)
+  unidad            String?  @db.VarChar(20)
+  descripcion       String
+  valor_unitario    Decimal  @db.Decimal(18, 2)
+  importe           Decimal  @db.Decimal(18, 2)
+  descuento         Decimal? @default(0) @db.Decimal(18, 2)
+  base_iva          Decimal? @db.Decimal(18, 2)
+  iva_tasa          Decimal? @default(0.1600) @db.Decimal(5, 4)
+  iva_importe       Decimal? @default(0) @db.Decimal(18, 2)
+  isr_tasa          Decimal? @default(0) @db.Decimal(5, 4)
+  isr_importe       Decimal? @default(0) @db.Decimal(18, 2)
+  ret_iva_tasa      Decimal? @default(0) @db.Decimal(5, 4)
+  ret_iva_importe   Decimal? @default(0) @db.Decimal(18, 2)
+  facturas          facturas @relation(fields: [id_factura], references: [id_factura], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model configuracion_facturacion {
+  id                     Int       @id @default(autoincrement())
+  rfc                    String    @db.VarChar(13)
+  razon_social           String    @db.VarChar(255)
+  regimen_fiscal         String    @db.VarChar(3)
+  codigo_postal          String    @db.VarChar(5)
+  csd_cer_path           String?
+  csd_key_path           String?
+  csd_password_encrypted String?
+  fecha_actualizacion    DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model configuracion_sistema {
+  id                          Int       @id @default(autoincrement())
+  nombre_sistema              String?   @default("ScaffoldPro") @db.VarChar(255)
+  zona_horaria                String?   @default("America/Mexico_City") @db.VarChar(100)
+  idioma                      String?   @default("Español") @db.VarChar(50)
+  moneda                      String?   @default("MXN - Peso Mexicano") @db.VarChar(50)
+  empresa_nombre              String?   @default("Andamios y Proyectos Torres S.A. de C.V.") @db.VarChar(255)
+  empresa_rfc                 String?   @default("AAP123456789") @db.VarChar(20)
+  empresa_telefono            String?   @default("+52 55 1234-5678") @db.VarChar(50)
+  empresa_direccion           String?   @default("Av. Industrial 123, Col. Centro, Ciudad de México, CP 01000")
+  empresa_email               String?   @default("contacto@andamiostorres.com") @db.VarChar(255)
+  empresa_web                 String?   @default("https://www.andamiostorres.com") @db.VarChar(255)
+  empresa_logo                String?
+  fecha_actualizacion         DateTime? @default(now()) @db.Timestamp(6)
+  respaldo_automatico         Boolean?  @default(true)
+  respaldo_frecuencia         String?   @default("Diario") @db.VarChar(20)
+  modo_mantenimiento          Boolean?  @default(false)
+  actualizaciones_automaticas Boolean?  @default(true)
+  modulos_mantenimiento       String?   @default("")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model configuracion_smtp {
+  id_config_smtp      Int       @id @default(autoincrement())
+  alias               String    @db.VarChar(80)
+  host                String    @db.VarChar(120)
+  puerto              Int       @default(465)
+  usa_ssl             Boolean   @default(true)
+  usuario             String    @db.VarChar(150)
+  contrasena          String
+  correo_from         String    @db.VarChar(150)
+  notas               String?
+  creado_por          Int?
+  fecha_creacion      DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
+  usuarios            usuarios? @relation(fields: [creado_por], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model contrato_items {
+  id_contrato_item Int       @id @default(autoincrement())
+  id_contrato      Int
+  clave            String?   @db.VarChar(50)
+  descripcion      String
+  cantidad         Int?      @default(1)
+  precio_unitario  Decimal   @db.Decimal(10, 2)
+  garantia         Decimal?  @default(0) @db.Decimal(12, 2)
+  total            Decimal   @db.Decimal(12, 2)
+  fecha_creacion   DateTime? @default(now()) @db.Timestamp(6)
+  contratos        contratos @relation(fields: [id_contrato], references: [id_contrato], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_contrato], map: "idx_contrato_items_contrato")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model contratos {
+  id_contrato         Int              @id @default(autoincrement())
+  id_cliente          Int?
+  responsable         String?          @db.VarChar(80)
+  estado              String?          @default("Activo") @db.VarChar(30)
+  fecha_inicio        DateTime?        @db.Date
+  fecha_fin           DateTime?        @db.Date
+  monto               Decimal?         @db.Decimal(12, 2)
+  pagado              Decimal?         @default(0) @db.Decimal(12, 2)
+  observaciones       String?
+  numero_contrato     String?          @unique @db.VarChar(50)
+  tipo                String?          @default("RENTA") @db.VarChar(20)
+  requiere_factura    String?          @default("SI") @db.VarChar(2)
+  fecha_contrato      DateTime?        @db.Date
+  id_cotizacion       Int?
+  subtotal            Decimal?         @default(0) @db.Decimal(12, 2)
+  impuesto            Decimal?         @default(0) @db.Decimal(12, 2)
+  descuento           Decimal?         @default(0) @db.Decimal(12, 2)
+  total               Decimal?         @default(0) @db.Decimal(12, 2)
+  tipo_garantia       String?          @db.VarChar(50)
+  importe_garantia    Decimal?         @default(0) @db.Decimal(12, 2)
+  calle               String?          @db.VarChar(255)
+  numero_externo      String?          @db.VarChar(20)
+  numero_interno      String?          @db.VarChar(20)
+  colonia             String?          @db.VarChar(255)
+  codigo_postal       String?          @db.VarChar(10)
+  entre_calles        String?          @db.VarChar(255)
+  pais                String?          @default("México") @db.VarChar(100)
+  municipio           String?          @db.VarChar(255)
+  notas_domicilio     String?
+  fecha_creacion      DateTime?        @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime?        @default(now()) @db.Timestamp(6)
+  usuario_creacion    String?          @db.VarChar(80)
+  estado_entidad      String?          @default("México") @db.VarChar(100)
+  pdf_contrato        String?          @db.VarChar(255)
+  pdf_nota            String?          @db.VarChar(255)
+  equipo              String?          @db.VarChar(255)
+  dias_renta          String?          @db.VarChar(100)
+  contacto_obra       String?          @db.VarChar(200)
+  telefono_obra       String?          @db.VarChar(20)
+  celular_obra        String?          @db.VarChar(20)
+  hora_inicio         DateTime?        @db.Timestamp(6)
+  hora_fin            DateTime?        @db.Timestamp(6)
+  numero_nota         String?          @db.VarChar(50)
+  precio_por_dia      Decimal?         @default(0) @db.Decimal(15, 2)
+  M_cancelado         String?
+  historial_prorrogas Json?            @default("[]")
+  metodo_entrega      String?          @default("Sucursal") @db.VarChar(50)
+  estado_logistica    String?          @default("en_espera") @db.VarChar(20)
+  tipo_logistica      String?          @default("metropolitana") @db.VarChar(20)
+  latitud             Decimal?         @db.Decimal(10, 8)
+  longitud            Decimal?         @db.Decimal(11, 8)
+  contrato_items      contrato_items[]
+  clientes            clientes?        @relation(fields: [id_cliente], references: [id_cliente], onUpdate: NoAction)
+  entregas            entregas[]
+  facturas            facturas[]
+  notificaciones      notificaciones[]
+
+  @@index([id_cliente], map: "idx_contratos_cliente")
+  @@index([estado], map: "idx_contratos_estado")
+  @@index([historial_prorrogas], map: "idx_contratos_historial_prorrogas", type: Gin)
+  @@index([numero_contrato], map: "idx_contratos_numero")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
+model cotizaciones {
+  id_cotizacion                                         Int                      @id @default(autoincrement())
+  numero_cotizacion                                     String                   @unique @db.VarChar(50)
+  id_cliente                                            Int?
+  tipo                                                  String                   @default("RENTA") @db.VarChar(20)
+  fecha_cotizacion                                      DateTime                 @default(dbgenerated("CURRENT_DATE")) @db.Date
+  periodo                                               String?                  @default("Inmediato") @db.VarChar(20)
+  dias_periodo                                          Int?                     @default(15)
+  descripcion                                           String?
+  direccion_entrega                                     String?
+  tipo_envio                                            String?                  @default("local") @db.VarChar(20)
+  distancia_km                                          Decimal?                 @default(0) @db.Decimal(10, 2)
+  costo_envio                                           Decimal?                 @default(0) @db.Decimal(10, 2)
+  detalle_calculo                                       String?
+  subtotal                                              Decimal?                 @default(0) @db.Decimal(12, 2)
+  iva                                                   Decimal?                 @default(0) @db.Decimal(12, 2)
+  total                                                 Decimal?                 @default(0) @db.Decimal(12, 2)
+  notas                                                 String?
+  estado                                                String?                  @default("Borrador") @db.VarChar(30)
+  prioridad                                             String?                  @default("Media") @db.VarChar(20)
+  fecha_seguimiento                                     DateTime?                @db.Date
+  fecha_creacion                                        DateTime?                @default(now()) @db.Timestamp(6)
+  fecha_modificacion                                    DateTime?                @default(now()) @db.Timestamp(6)
+  creado_por                                            Int?
+  modificado_por                                        Int?
+  id_almacen                                            Int?
+  nombre_almacen                                        String?                  @db.VarChar(100)
+  ubicacion_almacen                                     String?                  @db.VarChar(100)
+  numero_folio                                          String?                  @db.VarChar(50)
+  fecha_inicio                                          DateTime?                @db.Date
+  fecha_fin                                             DateTime?                @db.Date
+  moneda                                                String?                  @default("MXN") @db.VarChar(10)
+  tipo_cambio                                           Decimal?                 @default(1.0000) @db.Decimal(10, 4)
+  precio_por_dia                                        Decimal?                 @default(0) @db.Decimal(12, 2)
+  precio_semanal                                        Decimal?                 @default(0) @db.Decimal(12, 2)
+  precio_mensual                                        Decimal?                 @default(0) @db.Decimal(12, 2)
+  descuento_porcentaje                                  Decimal?                 @default(0) @db.Decimal(5, 2)
+  descuento_monto                                       Decimal?                 @default(0) @db.Decimal(12, 2)
+  tipo_cliente                                          String?                  @default("P├║blico en General") @db.VarChar(50)
+  contacto_nombre                                       String?                  @db.VarChar(100)
+  contacto_telefono                                     String?                  @db.VarChar(20)
+  contacto_email                                        String?                  @db.VarChar(100)
+  requiere_entrega                                      Boolean?                 @default(true)
+  direccion_completa                                    String?
+  coordenadas_entrega                                   Unsupported("point")?
+  fecha_entrega_solicitada                              DateTime?                @db.Date
+  hora_entrega_solicitada                               DateTime?                @db.Time(6)
+  instrucciones_entrega                                 String?
+  garantia_monto                                        Decimal?                 @default(0) @db.Decimal(12, 2)
+  garantia_porcentaje                                   Decimal?                 @default(0) @db.Decimal(5, 2)
+  costo_adicional                                       Decimal?                 @default(0) @db.Decimal(12, 2)
+  concepto_adicional                                    String?                  @db.VarChar(200)
+  notas_internas                                        Json?
+  configuracion_especial                                Json?
+  productos_seleccionados                               Json?
+  version                                               Int?                     @default(1)
+  cotizacion_origen                                     Int?
+  es_clon                                               Boolean?                 @default(false)
+  precio_unitario                                       Decimal?                 @default(0) @db.Decimal(12, 2)
+  cantidad_total                                        Int?                     @default(0)
+  aplica_iva                                            Boolean?                 @default(true)
+  porcentaje_iva                                        Decimal?                 @default(16.00) @db.Decimal(5, 2)
+  reduce_inventario                                     Boolean?                 @default(false)
+  productos_reservados                                  Boolean?                 @default(false)
+  fecha_reserva                                         DateTime?                @db.Timestamp(6)
+  terminos_pago                                         String?                  @default("Contado") @db.VarChar(50)
+  dias_credito                                          Int?                     @default(0)
+  metodo_pago                                           String?                  @default("Efectivo") @db.VarChar(50)
+  id_vendedor                                           Int?
+  comision_vendedor                                     Decimal?                 @default(0) @db.Decimal(12, 2)
+  porcentaje_comision                                   Decimal?                 @default(0) @db.Decimal(5, 2)
+  requiere_factura                                      Boolean?                 @default(false)
+  datos_facturacion                                     Json?
+  uso_cfdi                                              String?                  @default("G03") @db.VarChar(10)
+  historial_cambios                                     Json?                    @default("[]")
+  motivo_cambio                                         String?
+  usuario_ultima_accion                                 Int?
+  fecha_ultima_accion                                   DateTime?                @default(now()) @db.Timestamp(6)
+  numero_clones                                         Int?                     @default(0)
+  clon_de_folio                                         String?                  @db.VarChar(50)
+  fecha_clonacion                                       DateTime?                @db.Timestamp(6)
+  usuario_clono                                         Int?
+  cambios_en_clon                                       Json?
+  sucursal_vendedor                                     String?                  @db.VarChar(100)
+  supervisor_vendedor                                   Int?
+  pdf_generado                                          Boolean?                 @default(false)
+  fecha_pdf                                             DateTime?                @db.Timestamp(6)
+  usuario_genero_pdf                                    Int?
+  ruta_pdf                                              String?
+  hash_pdf                                              String?                  @db.VarChar(64)
+  plantilla_pdf                                         String?                  @default("standard") @db.VarChar(50)
+  configuracion_pdf                                     Json?
+  requiere_aprobacion                                   Boolean?                 @default(false)
+  nivel_aprobacion_requerido                            Int?                     @default(1)
+  aprobaciones                                          Json?                    @default("[]")
+  fecha_aprobacion                                      DateTime?                @db.Timestamp(6)
+  usuario_aprobo                                        Int?
+  comentarios_aprobacion                                String?
+  notificaciones_enviadas                               Json?                    @default("[]")
+  recordatorios_programados                             Json?                    @default("[]")
+  fecha_vencimiento                                     DateTime?                @db.Date
+  dias_vigencia                                         Int?                     @default(30)
+  sincronizado_erp                                      Boolean?                 @default(false)
+  fecha_sincronizacion                                  DateTime?                @db.Timestamp(6)
+  id_externo                                            String?                  @db.VarChar(100)
+  sistema_origen                                        String?                  @default("SISTEMA_RENTA") @db.VarChar(50)
+  tiempo_elaboracion                                    Unsupported("interval")?
+  numero_revisiones                                     Int?                     @default(0)
+  tasa_conversion                                       Decimal?                 @default(0) @db.Decimal(5, 2)
+  valor_potencial                                       Decimal?                 @default(0) @db.Decimal(12, 2)
+  probabilidad_cierre                                   Decimal?                 @default(50.00) @db.Decimal(5, 2)
+  entrega_notas                                         String?
+  entrega_calle                                         String?                  @db.VarChar(200)
+  entrega_numero_ext                                    String?                  @db.VarChar(20)
+  entrega_numero_int                                    String?                  @db.VarChar(20)
+  entrega_colonia                                       String?                  @db.VarChar(100)
+  entrega_cp                                            String?                  @db.VarChar(10)
+  entrega_municipio                                     String?                  @db.VarChar(100)
+  entrega_estado                                        String?                  @db.VarChar(50)
+  entrega_referencia                                    String?
+  entrega_kilometros                                    Decimal?                 @default(0) @db.Decimal(10, 2)
+  tipo_zona                                             String?                  @db.VarChar(20)
+  entrega_lote                                          String?                  @db.VarChar(50)
+  condiciones                                           String?
+  accesorios_seleccionados                              Json?                    @default("[]")
+  numero_nota                                           String?                  @db.VarChar(20)
+  entrega_contacto                                      String?                  @db.VarChar(200)
+  hora_inicio                                           String?                  @db.VarChar(20)
+  hora_fin                                              String?                  @db.VarChar(20)
+  metodo_entrega                                        String?                  @db.VarChar(50)
+  id_almacen_recoleccion                                Int?
+  entrega_telefono                                      String?                  @db.VarChar(20)
+  fecha_cobro                                           DateTime?                @db.Timestamp(6)
+  dias_credito_aplicado                                 Int?
+  fecha_vencimiento_credito                             DateTime?                @db.Date
+  latitud                                               Decimal?                 @db.Decimal(10, 8)
+  longitud                                              Decimal?                 @db.Decimal(11, 8)
+  cotizaciones                                          cotizaciones?            @relation("cotizacionesTocotizaciones", fields: [cotizacion_origen], references: [id_cotizacion], onUpdate: NoAction)
+  other_cotizaciones                                    cotizaciones[]           @relation("cotizacionesTocotizaciones")
+  usuarios_cotizaciones_creado_porTousuarios            usuarios?                @relation("cotizaciones_creado_porTousuarios", fields: [creado_por], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+  almacenes                                             almacenes?               @relation(fields: [id_almacen], references: [id_almacen], onUpdate: NoAction)
+  usuarios_cotizaciones_id_vendedorTousuarios           usuarios?                @relation("cotizaciones_id_vendedorTousuarios", fields: [id_vendedor], references: [id_usuario], onUpdate: NoAction)
+  usuarios_cotizaciones_modificado_porTousuarios        usuarios?                @relation("cotizaciones_modificado_porTousuarios", fields: [modificado_por], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_cotizaciones_supervisor_vendedorTousuarios   usuarios?                @relation("cotizaciones_supervisor_vendedorTousuarios", fields: [supervisor_vendedor], references: [id_usuario], onUpdate: NoAction)
+  usuarios_cotizaciones_usuario_aproboTousuarios        usuarios?                @relation("cotizaciones_usuario_aproboTousuarios", fields: [usuario_aprobo], references: [id_usuario], onUpdate: NoAction)
+  usuarios_cotizaciones_usuario_clonoTousuarios         usuarios?                @relation("cotizaciones_usuario_clonoTousuarios", fields: [usuario_clono], references: [id_usuario], onUpdate: NoAction)
+  usuarios_cotizaciones_usuario_genero_pdfTousuarios    usuarios?                @relation("cotizaciones_usuario_genero_pdfTousuarios", fields: [usuario_genero_pdf], references: [id_usuario], onUpdate: NoAction)
+  usuarios_cotizaciones_usuario_ultima_accionTousuarios usuarios?                @relation("cotizaciones_usuario_ultima_accionTousuarios", fields: [usuario_ultima_accion], references: [id_usuario], onUpdate: NoAction)
+
+  @@index([id_almacen], map: "idx_cotizaciones_almacen")
+  @@index([id_cliente], map: "idx_cotizaciones_cliente")
+  @@index([clon_de_folio, version], map: "idx_cotizaciones_clones")
+  @@index([cotizacion_origen], map: "idx_cotizaciones_cotizacion_origen")
+  @@index([entrega_estado], map: "idx_cotizaciones_entrega_estado")
+  @@index([entrega_lote], map: "idx_cotizaciones_entrega_lote")
+  @@index([es_clon], map: "idx_cotizaciones_es_clon")
+  @@index([estado], map: "idx_cotizaciones_estado")
+  @@index([fecha_cotizacion], map: "idx_cotizaciones_fecha")
+  @@index([fecha_cobro], map: "idx_cotizaciones_fecha_cobro")
+  @@index([fecha_inicio], map: "idx_cotizaciones_fecha_inicio")
+  @@index([fecha_vencimiento], map: "idx_cotizaciones_fecha_vencimiento")
+  @@index([numero_folio], map: "idx_cotizaciones_folio")
+  @@index([id_vendedor, fecha_cotizacion(sort: Desc), estado], map: "idx_cotizaciones_historial")
+  @@index([metodo_pago], map: "idx_cotizaciones_metodo_pago")
+  @@index([moneda], map: "idx_cotizaciones_moneda")
+  @@index([pdf_generado], map: "idx_cotizaciones_pdf_generado")
+  @@index([requiere_aprobacion], map: "idx_cotizaciones_requiere_aprobacion", where: raw("(requiere_aprobacion = true)"))
+  @@index([sincronizado_erp], map: "idx_cotizaciones_sincronizado_erp")
+  @@index([terminos_pago], map: "idx_cotizaciones_terminos_pago")
+  @@index([tipo], map: "idx_cotizaciones_tipo")
+  @@index([tipo_cliente], map: "idx_cotizaciones_tipo_cliente")
+  @@index([tipo_zona], map: "idx_cotizaciones_tipo_zona")
+  @@index([usuario_ultima_accion], map: "idx_cotizaciones_usuario_ultima_accion")
+  @@index([id_vendedor], map: "idx_cotizaciones_vendedor")
+}
+
+model credit_note_items {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  credit_note_id  String       @db.Uuid
+  product_id      Int?
+  quantity        Decimal      @default(0) @db.Decimal(14, 6)
+  unit_price      Decimal      @default(0) @db.Decimal(14, 6)
+  discount        Decimal      @default(0) @db.Decimal(14, 2)
+  tax             Decimal      @default(0) @db.Decimal(14, 2)
+  total           Decimal      @default(0) @db.Decimal(14, 2)
+  sat_product_key String       @default("01010101") @db.VarChar(20)
+  sat_unit_key    String       @default("H87") @db.VarChar(20)
+  description     String
+  created_at      DateTime     @default(now()) @db.Timestamp(6)
+  updated_at      DateTime     @default(now()) @db.Timestamp(6)
+  credit_notes    credit_notes @relation(fields: [credit_note_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([credit_note_id], map: "idx_credit_note_items_note")
+}
+
+model credit_note_logs {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  credit_note_id String?       @db.Uuid
+  event          String        @db.VarChar(80)
+  request_sat    Json?
+  response_sat   Json?
+  error          Json?
+  user_id        Int?
+  created_at     DateTime      @default(now()) @db.Timestamp(6)
+  credit_notes   credit_notes? @relation(fields: [credit_note_id], references: [id], onUpdate: NoAction)
+
+  @@index([credit_note_id], map: "idx_credit_note_logs_note")
+}
+
+model credit_note_relations {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  credit_note_id String       @db.Uuid
+  invoice_uuid   String
+  relation_type  String       @default("01") @db.VarChar(5)
+  created_at     DateTime     @default(now()) @db.Timestamp(6)
+  credit_notes   credit_notes @relation(fields: [credit_note_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([credit_note_id], map: "idx_credit_note_relations_note")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model credit_notes {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoice_id            String?                 @db.Uuid
+  id_factura_origen     Int?
+  customer_id           Int?
+  uuid                  String?
+  folio                 String?
+  relation_type         String                  @default("01") @db.VarChar(5)
+  reason                String
+  subtotal              Decimal                 @default(0) @db.Decimal(14, 2)
+  tax                   Decimal                 @default(0) @db.Decimal(14, 2)
+  total                 Decimal                 @default(0) @db.Decimal(14, 2)
+  balance_applied       Decimal                 @default(0) @db.Decimal(14, 2)
+  status                String                  @default("BORRADOR") @db.VarChar(20)
+  sat_status            String                  @default("PENDIENTE") @db.VarChar(30)
+  provider              String                  @default("facturama") @db.VarChar(30)
+  branch_id             Int?
+  created_by            Int?
+  updated_by            Int?
+  stamped_at            DateTime?               @db.Timestamp(6)
+  created_at            DateTime                @default(now()) @db.Timestamp(6)
+  updated_at            DateTime                @default(now()) @db.Timestamp(6)
+  pdf_path              String?
+  xml_path              String?
+  stamped_by            Int?
+  credit_note_items     credit_note_items[]
+  credit_note_logs      credit_note_logs[]
+  credit_note_relations credit_note_relations[]
+  clientes              clientes?               @relation(fields: [customer_id], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+  facturas              facturas?               @relation(fields: [id_factura_origen], references: [id_factura], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([customer_id], map: "idx_credit_notes_customer_id")
+  @@index([id_factura_origen], map: "idx_credit_notes_factura_origen")
+  @@index([invoice_id], map: "idx_credit_notes_invoice_id")
+  @@index([stamped_by], map: "idx_credit_notes_stamped_by")
+  @@index([status], map: "idx_credit_notes_status")
+  @@index([uuid], map: "idx_credit_notes_uuid")
+}
+
+model customer_ledger {
+  id               Int       @id @default(autoincrement())
+  id_cliente       Int?
+  fecha            DateTime? @default(now()) @db.Timestamptz(6)
+  tipo_mov         String?   @db.VarChar(20)
+  referencia_tipo  String?   @db.VarChar(50)
+  referencia_id    Int?
+  cargo            Decimal?  @default(0) @db.Decimal(14, 2)
+  abono            Decimal?  @default(0) @db.Decimal(14, 2)
+  saldo_resultante Decimal?  @db.Decimal(14, 2)
+  metadata_json    Json?
+  usuario_id       Int?
+  descripcion      String?
+  clientes         clientes? @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_cliente, fecha], map: "idx_ledger_cliente_fecha")
+}
+
+model documentos_vehiculo {
+  id           Int        @id @default(autoincrement())
+  vehiculo_id  Int?
+  tipo         String     @db.VarChar(50)
+  fecha_inicio DateTime?  @db.Date
+  fecha_fin    DateTime   @db.Date
+  estatus      String?    @default("vigente") @db.VarChar(20)
+  folio        String?    @db.VarChar(100)
+  archivo_url  String?    @db.VarChar(255)
+  creado_el    DateTime?  @default(now()) @db.Timestamp(6)
+  vehiculos    vehiculos? @relation(fields: [vehiculo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([fecha_fin], map: "idx_docs_vencimiento")
+}
+
+model emisores {
+  id_emisor      Int        @id @default(autoincrement())
+  rfc            String     @db.VarChar(13)
+  razon_social   String     @db.VarChar(255)
+  regimen_fiscal String     @db.VarChar(3)
+  codigo_postal  String     @db.VarChar(5)
+  csd_cer        String
+  csd_key        String
+  csd_password   String
+  activo         Boolean?   @default(true)
+  fecha_creacion DateTime?  @default(now()) @db.Timestamp(6)
+  facturas       facturas[]
+}
+
+model encuestas_plantillas {
+  id_plantilla           Int                      @id @default(autoincrement())
+  nombre                 String                   @db.VarChar(120)
+  version                Int?                     @default(1)
+  activa                 Boolean?                 @default(true)
+  descripcion            String?
+  config                 Json?                    @default("{}")
+  fecha_creacion         DateTime?                @default(now()) @db.Timestamp(6)
+  fecha_actualizacion    DateTime?                @default(now()) @db.Timestamp(6)
+  encuestas_preguntas    encuestas_preguntas[]
+  encuestas_satisfaccion encuestas_satisfaccion[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model encuestas_preguntas {
+  id_pregunta          Int                  @id @default(autoincrement())
+  id_plantilla         Int
+  clave                String               @db.VarChar(50)
+  tipo                 String               @db.VarChar(20)
+  etiqueta             String
+  requerida            Boolean?             @default(true)
+  orden                Int?                 @default(0)
+  config               Json?                @default("{}")
+  fecha_creacion       DateTime?            @default(now()) @db.Timestamp(6)
+  fecha_actualizacion  DateTime?            @default(now()) @db.Timestamp(6)
+  encuestas_plantillas encuestas_plantillas @relation(fields: [id_plantilla], references: [id_plantilla], onDelete: Cascade, onUpdate: NoAction, map: "encuestas_preguntas_plantilla_fkey")
+
+  @@unique([id_plantilla, clave], map: "encuestas_preguntas_plantilla_clave_uniq")
+}
+
+model encuestas_respuestas {
+  id_respuesta              Int                    @id @default(autoincrement())
+  id_encuesta               Int                    @unique(map: "encuestas_respuestas_one_per_encuesta_uniq")
+  id_cliente                Int?
+  calificacion_general      Decimal?               @db.Decimal(3, 1)
+  calificacion_pago         Decimal?               @db.Decimal(3, 1)
+  calificacion_comunicacion Decimal?               @db.Decimal(3, 1)
+  calificacion_equipos      Decimal?               @db.Decimal(3, 1)
+  calificacion_satisfaccion Decimal?               @db.Decimal(3, 1)
+  comentarios               String?
+  respuestas_json           Json?                  @default("{}")
+  fecha_respuesta           DateTime?              @default(now()) @db.Timestamp(6)
+  ip_respuesta              String?                @db.Inet
+  user_agent                String?
+  clientes                  clientes?              @relation(fields: [id_cliente], references: [id_cliente], onUpdate: NoAction, map: "encuestas_respuestas_cliente_fkey")
+  encuestas_satisfaccion    encuestas_satisfaccion @relation(fields: [id_encuesta], references: [id_encuesta], onDelete: Cascade, onUpdate: NoAction, map: "encuestas_respuestas_encuesta_fkey")
+
+  @@index([id_cliente, fecha_respuesta], map: "idx_encuestas_respuestas_cliente_fecha")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model encuestas_satisfaccion {
+  id_encuesta          Int                   @id @default(autoincrement())
+  id_cliente           Int?
+  id_proyecto          Int?
+  url_encuesta         String
+  fecha_envio          DateTime?             @default(now()) @db.Timestamp(6)
+  fecha_vencimiento    DateTime?             @db.Date
+  estado               String?               @default("pendiente") @db.VarChar(20)
+  enviada_por          Int?
+  metodo_envio         String?               @db.VarChar(20)
+  email_cliente        String?               @db.VarChar(120)
+  telefono_cliente     String?               @db.VarChar(30)
+  notas                String?
+  fecha_creacion       DateTime?             @default(now()) @db.Timestamp(6)
+  fecha_actualizacion  DateTime?             @default(now()) @db.Timestamp(6)
+  origen_tipo          String?               @db.VarChar(30)
+  origen_id            Int?
+  id_plantilla         Int?
+  token_hash           String?               @db.VarChar(64)
+  token_expira         DateTime?             @db.Timestamp(6)
+  fecha_respuesta      DateTime?             @db.Timestamp(6)
+  encuestas_respuestas encuestas_respuestas?
+  clientes             clientes?             @relation(fields: [id_cliente], references: [id_cliente], onDelete: Cascade, onUpdate: NoAction)
+  encuestas_plantillas encuestas_plantillas? @relation(fields: [id_plantilla], references: [id_plantilla], onUpdate: NoAction, map: "encuestas_satisfaccion_plantilla_fkey")
+
+  @@index([id_cliente], map: "idx_encuestas_cliente")
+  @@index([estado], map: "idx_encuestas_estado")
+  @@index([estado, fecha_envio], map: "idx_encuestas_estado_fecha")
+  @@index([fecha_envio], map: "idx_encuestas_fecha_envio")
+  @@index([origen_tipo, origen_id], map: "idx_encuestas_origen")
+  @@index([id_plantilla], map: "idx_encuestas_plantilla")
+  @@index([token_hash], map: "idx_encuestas_token_hash")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model encuestas_satisfaccionsg {
+  id_encuesta           Int                     @id @default(autoincrement())
+  id_cliente            Int?
+  id_proyecto           Int?
+  url_encuesta          String
+  fecha_envio           DateTime?               @default(now()) @db.Timestamp(6)
+  fecha_vencimiento     DateTime?               @db.Date
+  estado                String?                 @default("enviada") @db.VarChar(20)
+  enviada_por           Int?
+  metodo_envio          String?                 @db.VarChar(20)
+  email_cliente         String?                 @db.VarChar(120)
+  telefono_cliente      String?                 @db.VarChar(30)
+  notas                 String?
+  fecha_creacion        DateTime?               @default(now()) @db.Timestamp(6)
+  fecha_actualizacion   DateTime?               @default(now()) @db.Timestamp(6)
+  clientes              clientes?               @relation(fields: [id_cliente], references: [id_cliente], onDelete: Cascade, onUpdate: NoAction)
+  respuestas_encuestasg respuestas_encuestasg[]
+}
+
+model entregas {
+  id_entrega    Int        @id @default(autoincrement())
+  id_contrato   Int?
+  fecha         DateTime?  @db.Date
+  hora          String?    @db.VarChar(20)
+  estado        String?    @db.VarChar(30)
+  ubicacion     String?    @db.VarChar(200)
+  equipos       String?
+  id_flota      Int?
+  observaciones String?
+  contratos     contratos? @relation(fields: [id_contrato], references: [id_contrato], onUpdate: NoAction)
+  flota         flota?     @relation(fields: [id_flota], references: [id_flota], onUpdate: NoAction)
+}
+
+model equipos {
+  id_equipo       Int       @id(map: "equipos_pkey1") @default(autoincrement())
+  nombre          String    @db.VarChar(200)
+  clave           String    @unique @db.VarChar(100)
+  categoria       String?   @db.VarChar(100)
+  ubicacion       String?   @db.VarChar(200)
+  condicion       String?   @db.VarChar(50)
+  peso            Decimal?  @db.Decimal(10, 2)
+  descripcion     String?
+  precio_unitario Decimal?  @db.Decimal(10, 2)
+  garantia        String?   @db.VarChar(100)
+  importe         Decimal?  @db.Decimal(10, 2)
+  stock           Int?      @default(1)
+  venta           Boolean?  @default(false)
+  renta           Boolean?  @default(true)
+  imagen          Bytes?
+  estado          String?   @default("Disponible") @db.VarChar(50)
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model especificaciones {
+  id_especificacion     Int        @id @default(autoincrement())
+  id_producto           Int?
+  nombre_especificacion String?    @db.VarChar(100)
+  valor                 String?    @db.VarChar(255)
+  productos             productos? @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model facturas {
+  id_factura         Int                 @id @default(autoincrement())
+  uuid               String?             @db.VarChar(36)
+  id_emisor          Int
+  id_cliente         Int
+  id_contrato        Int?
+  serie              String?             @db.VarChar(10)
+  folio              String?             @db.VarChar(20)
+  fecha_emision      DateTime            @db.Timestamp(6)
+  fecha_timbrado     DateTime?           @db.Timestamp(6)
+  tipo_comprobante   String?             @default("I") @db.Char(1)
+  lugar_expedicion   String?             @db.VarChar(5)
+  moneda             String?             @default("MXN") @db.VarChar(3)
+  tipo_cambio        Decimal?            @default(1.0) @db.Decimal(18, 6)
+  forma_pago         String?             @db.VarChar(2)
+  metodo_pago        String?             @db.VarChar(3)
+  condiciones_pago   String?             @db.VarChar(100)
+  uso_cfdi           String?             @db.VarChar(4)
+  subtotal           Decimal?            @db.Decimal(18, 2)
+  descuento          Decimal?            @default(0) @db.Decimal(18, 2)
+  total              Decimal?            @db.Decimal(18, 2)
+  total_iva          Decimal?            @default(0) @db.Decimal(18, 2)
+  total_isr          Decimal?            @default(0) @db.Decimal(18, 2)
+  total_ret_iva      Decimal?            @default(0) @db.Decimal(18, 2)
+  estado             String?             @default("emitido") @db.VarChar(20)
+  xml_path           String?
+  pdf_path           String?
+  acuse_cancelacion  String?
+  motivo_cancelacion String?             @db.VarChar(2)
+  uuid_relacionado   String?             @db.VarChar(36)
+  tipo_relacion      String?             @db.VarChar(2)
+  sello_cfdi         String?
+  sello_sat          String?
+  no_certificado     String?             @db.VarChar(20)
+  no_certificado_sat String?             @db.VarChar(20)
+  nota               String?
+  fecha_pagado       DateTime?           @db.Timestamp(6)
+  fecha_creacion     DateTime?           @default(now()) @db.Timestamp(6)
+  id_usuario         Int?
+  total_descuento    Decimal?            @default(0) @db.Decimal(15, 2)
+  conceptos_factura  conceptos_factura[]
+  credit_notes       credit_notes[]
+  clientes           clientes            @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+  contratos          contratos?          @relation(fields: [id_contrato], references: [id_contrato], onDelete: NoAction, onUpdate: NoAction)
+  emisores           emisores            @relation(fields: [id_emisor], references: [id_emisor], onDelete: NoAction, onUpdate: NoAction)
+  usuarios           usuarios?           @relation(fields: [id_usuario], references: [id_usuario], onUpdate: NoAction)
+}
+
+model flota {
+  id_flota      Int        @id @default(autoincrement())
+  placa         String     @db.VarChar(20)
+  tipo          String?    @db.VarChar(60)
+  estado        String?    @db.VarChar(30)
+  ubicacion     String?    @db.VarChar(120)
+  mantenimiento DateTime?  @db.Date
+  conductor     String?    @db.VarChar(80)
+  entregas      entregas[]
+}
+
+model imagenes_producto {
+  id_imagen      Int        @id @default(autoincrement())
+  id_producto    Int?
+  imagen_data    Bytes?
+  nombre_archivo String?    @db.VarChar(255)
+  productos      productos? @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model logistica_asignaciones {
+  id                          Int                           @id @default(autoincrement())
+  vehiculo_id                 Int?
+  chofer_id                   String?                       @db.VarChar(20)
+  pedido_id                   Int?
+  tipo_referencia             String?                       @db.VarChar(50)
+  estado                      String?                       @default("programada") @db.VarChar(20)
+  fecha_asignacion            DateTime?                     @default(now()) @db.Timestamp(6)
+  fecha_inicio                DateTime?                     @db.Timestamp(6)
+  fecha_fin                   DateTime?                     @db.Timestamp(6)
+  observaciones               String?
+  evidencia_url               String?
+  recibio_nombre              String?                       @db.VarChar(255)
+  tipo_movimiento             String?                       @default("entrega") @db.VarChar(50)
+  motivo_incidencia           String?                       @db.VarChar(100)
+  cliente_id                  Int?
+  clientes                    clientes?                     @relation(fields: [cliente_id], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+  vehiculos                   vehiculos?                    @relation(fields: [vehiculo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  logistica_tracking          logistica_tracking[]
+  notificaciones_historial    notificaciones_historial[]
+  seguimiento_eventos         seguimiento_eventos[]
+  seguimiento_tokens_publicos seguimiento_tokens_publicos[]
+
+  @@index([pedido_id, tipo_referencia], map: "idx_asignaciones_pedido")
+}
+
+model logistica_eventos {
+  id             Int       @id @default(autoincrement())
+  tipo_evento    String    @db.VarChar(50)
+  id_referencia  Int?
+  data_json      Json?
+  procesado      Boolean?  @default(false)
+  fecha_creacion DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model logistica_nodos {
+  id                                                                 Int                @id @default(autoincrement())
+  nombre                                                             String?            @db.VarChar(100)
+  latitud                                                            Decimal            @db.Decimal(10, 8)
+  longitud                                                           Decimal            @db.Decimal(11, 8)
+  creado_el                                                          DateTime?          @default(now()) @db.Timestamp(6)
+  logistica_tramos_logistica_tramos_nodo_destino_idTologistica_nodos logistica_tramos[] @relation("logistica_tramos_nodo_destino_idTologistica_nodos")
+  logistica_tramos_logistica_tramos_nodo_origen_idTologistica_nodos  logistica_tramos[] @relation("logistica_tramos_nodo_origen_idTologistica_nodos")
+
+  @@index([latitud, longitud], map: "idx_logistica_nodos_coords")
+  @@index([latitud, longitud], map: "idx_nodos_coords")
+}
+
+model logistica_tracking {
+  id                     Int                     @id @default(autoincrement())
+  asignacion_id          Int?
+  latitud                Decimal                 @db.Decimal(10, 8)
+  longitud               Decimal                 @db.Decimal(11, 8)
+  velocidad              Decimal?                @db.Decimal(5, 2)
+  timestamp              DateTime?               @default(now()) @db.Timestamp(6)
+  logistica_asignaciones logistica_asignaciones? @relation(fields: [asignacion_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([asignacion_id], map: "idx_tracking_asignacion")
+  @@index([timestamp], map: "idx_tracking_timestamp")
+}
+
+model logistica_tramos {
+  id                                                                Int              @id @default(autoincrement())
+  nodo_origen_id                                                    Int?
+  nodo_destino_id                                                   Int?
+  distancia_km                                                      Decimal          @db.Decimal(10, 3)
+  velocidad_promedio_kmh                                            Int?             @default(40)
+  es_sentido_unico                                                  Boolean?         @default(false)
+  creado_el                                                         DateTime?        @default(now()) @db.Timestamp(6)
+  logistica_nodos_logistica_tramos_nodo_destino_idTologistica_nodos logistica_nodos? @relation("logistica_tramos_nodo_destino_idTologistica_nodos", fields: [nodo_destino_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  logistica_nodos_logistica_tramos_nodo_origen_idTologistica_nodos  logistica_nodos? @relation("logistica_tramos_nodo_origen_idTologistica_nodos", fields: [nodo_origen_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model mantenimientos {
+  id          Int        @id @default(autoincrement())
+  vehiculo_id Int?
+  tipo        String     @db.VarChar(50)
+  descripcion String
+  costo       Decimal?   @default(0.00) @db.Decimal(12, 2)
+  fecha       DateTime   @db.Date
+  kilometraje BigInt?
+  creado_el   DateTime?  @default(now()) @db.Timestamp(6)
+  vehiculos   vehiculos? @relation(fields: [vehiculo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([vehiculo_id], map: "idx_mantenimientos_vehiculo")
+}
+
+model notificaciones {
+  id_notificacion                                     Int         @id @default(autoincrement())
+  tipo                                                String?     @db.VarChar(40)
+  mensaje                                             String
+  fecha                                               DateTime?   @default(now()) @db.Timestamp(6)
+  leida                                               Boolean?    @default(false)
+  id_usuario                                          Int?
+  id_accesorio                                        Int?
+  id_contrato                                         Int?
+  prioridad                                           String?     @default("Normal") @db.VarChar(20)
+  modulo                                              String?     @db.VarChar(40)
+  referencia_tipo                                     String?     @db.VarChar(40)
+  referencia_id                                       String?     @db.VarChar(100)
+  id_usuario_accion                                   Int?
+  metadata                                            Json?
+  contratos                                           contratos?  @relation(fields: [id_contrato], references: [id_contrato], onUpdate: NoAction)
+  accesorios                                          accesorios? @relation(fields: [id_accesorio], references: [id_equipo], onUpdate: NoAction, map: "notificaciones_id_equipo_fkey")
+  usuarios_notificaciones_id_usuario_accionTousuarios usuarios?   @relation("notificaciones_id_usuario_accionTousuarios", fields: [id_usuario_accion], references: [id_usuario], onUpdate: NoAction)
+  usuarios_notificaciones_id_usuarioTousuarios        usuarios?   @relation("notificaciones_id_usuarioTousuarios", fields: [id_usuario], references: [id_usuario], onUpdate: NoAction)
+
+  @@index([fecha(sort: Desc)], map: "idx_notif_fecha")
+  @@index([leida], map: "idx_notif_leida", where: raw("(leida = false)"))
+  @@index([modulo], map: "idx_notif_modulo")
+}
+
+model notificaciones_historial {
+  id                     Int                     @id @default(autoincrement())
+  asignacion_id          Int?
+  cliente_id             Int?
+  tipo_notificacion      String?                 @db.VarChar(50)
+  estado_evento          String?                 @db.VarChar(50)
+  destinatario           String?                 @db.VarChar(255)
+  exitosa                Boolean?
+  mensaje_error          String?
+  sent_at                DateTime?               @default(now()) @db.Timestamp(6)
+  logistica_asignaciones logistica_asignaciones? @relation(fields: [asignacion_id], references: [id], onUpdate: NoAction)
+  clientes               clientes?               @relation(fields: [cliente_id], references: [id_cliente], onUpdate: NoAction)
+
+  @@index([asignacion_id], map: "idx_notif_historial_asig")
+  @@index([sent_at], map: "idx_notif_historial_fecha")
+  @@index([tipo_notificacion], map: "idx_notif_historial_tipo")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model productos {
+  id_producto         Int                 @id @default(autoincrement())
+  clave               String              @unique @db.VarChar(50)
+  nombre_del_producto String              @db.VarChar(100)
+  descripcion         String?
+  marca               String?             @db.VarChar(50)
+  modelo              String?             @db.VarChar(50)
+  material            String?             @db.VarChar(50)
+  id_categoria        Int?
+  peso                Decimal?            @db.Decimal(15, 4)
+  capacidad_de_carga  Decimal?            @db.Decimal(10, 2)
+  largo               Decimal?            @db.Decimal(10, 2)
+  ancho               Decimal?            @db.Decimal(10, 2)
+  alto                Decimal?            @db.Decimal(10, 2)
+  stock_total         Int?                @default(0)
+  stock_venta         Int?                @default(0)
+  en_renta            Int?                @default(0)
+  reservado           Int?                @default(0)
+  en_mantenimiento    Int?                @default(0)
+  estado              String?             @db.VarChar(20)
+  condicion           String?             @db.VarChar(20)
+  codigo_de_barras    Bytes?
+  id_almacen          Int?
+  id_subcategoria     Int?
+  tarifa_renta        Decimal             @default(0.00) @db.Decimal(10, 2)
+  precio_venta        Decimal             @default(0.00) @db.Decimal(10, 2)
+  url_producto        String?             @db.VarChar(500)
+  clave_sat_productos String?             @db.VarChar(20)
+  especificaciones    especificaciones[]
+  imagenes_producto   imagenes_producto[]
+  almacenes           almacenes?          @relation(fields: [id_almacen], references: [id_almacen], onUpdate: NoAction)
+  categorias          categorias?         @relation(fields: [id_categoria], references: [id_categoria], onUpdate: NoAction)
+  subcategorias       subcategorias?      @relation(fields: [id_subcategoria], references: [id_subcategoria], onUpdate: NoAction)
+
+  @@index([clave_sat_productos], map: "idx_clave_sat_productos")
+}
+
+model respaldos {
+  id             Int       @id @default(autoincrement())
+  nombre_archivo String    @db.VarChar(255)
+  ruta           String    @db.VarChar(511)
+  tamano         BigInt?
+  tipo           String?   @default("manual") @db.VarChar(50)
+  estado         String?   @default("completado") @db.VarChar(50)
+  fecha_creacion DateTime? @default(now()) @db.Timestamp(6)
+  creado_por     Int?
+  usuarios       usuarios? @relation(fields: [creado_por], references: [id_usuario], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model respuestas_encuestasg {
+  id_respuesta             Int                       @id @default(autoincrement())
+  id_encuesta              Int?
+  nombre_cliente           String?                   @db.VarChar(120)
+  email_cliente            String?                   @db.VarChar(120)
+  fecha_respuesta          DateTime?                 @default(now()) @db.Timestamp(6)
+  q1_atencion_ventas       String?                   @db.VarChar(20)
+  q2_calidad_productos     String?                   @db.VarChar(20)
+  q3_tiempo_entrega        String?                   @db.VarChar(20)
+  q4_servicio_logistica    String?                   @db.VarChar(20)
+  q5_experiencia_compra    String?                   @db.VarChar(20)
+  sugerencias              String?
+  puntuacion_total         Decimal?                  @db.Decimal(3, 2)
+  ip_address               String?                   @db.Inet
+  user_agent               String?
+  fecha_creacion           DateTime?                 @default(now()) @db.Timestamp(6)
+  encuestas_satisfaccionsg encuestas_satisfaccionsg? @relation(fields: [id_encuesta], references: [id_encuesta], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_encuesta], map: "idx_respuestas_encuesta")
+  @@index([fecha_respuesta], map: "idx_respuestas_fecha")
+}
+
+model rh_asistencia {
+  id              Int             @id @default(autoincrement())
+  empleado_id     String?         @db.VarChar(20)
+  fecha           DateTime        @db.Date
+  hora            DateTime        @db.Time(6)
+  tipo            String?         @db.VarChar(20)
+  metodo          String?         @default("Biométrico") @db.VarChar(50)
+  status          String?         @default("OK") @db.VarChar(20)
+  bio_id_registro Int?
+  biometrico_id   Int?
+  rh_biometricos  rh_biometricos? @relation(fields: [biometrico_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asistencia_biometrico")
+  rh_empleados    rh_empleados?   @relation(fields: [empleado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model rh_asistencia_extras {
+  id                  Int           @id @default(autoincrement())
+  empleado_id         String?       @db.VarChar(20)
+  fecha               DateTime      @db.Date
+  minutos_detectados  Int?          @default(0)
+  minutos_autorizados Int?          @default(0)
+  motivo              String?
+  autorizado_por      String?
+  status              String?       @default("Pendiente") @db.VarChar(20)
+  created_at          DateTime?     @default(now()) @db.Timestamp(6)
+  rh_empleados        rh_empleados? @relation(fields: [empleado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([empleado_id, fecha])
+}
+
+model rh_auditoria {
+  id      Int       @id @default(autoincrement())
+  fecha   DateTime? @default(now()) @db.Timestamp(6)
+  usuario String?   @db.VarChar(100)
+  accion  String?
+  modulo  String?   @default("Configuración") @db.VarChar(50)
+}
+
+model rh_biometricos {
+  id                     Int                      @id @default(autoincrement())
+  nombre                 String                   @db.VarChar(50)
+  ubicacion              String?                  @db.VarChar(50)
+  ip                     String                   @db.VarChar(15)
+  puerto                 Int?                     @default(4370)
+  activo                 Boolean?                 @default(true)
+  ultima_sincronizacion  DateTime?                @db.Timestamp(6)
+  creado_at              DateTime?                @default(now()) @db.Timestamp(6)
+  rh_asistencia          rh_asistencia[]
+  rh_empleados_biometria rh_empleados_biometria[]
+}
+
+model rh_config_global {
+  id                            Int       @id @default(1)
+  asistencia_tolerancia_min     Int?      @default(10)
+  asistencia_umbral_retardo_min Int?      @default(15)
+  vacaciones_dias_base          Int?      @default(12)
+  vacaciones_max_seguidos       Int?      @default(10)
+  vacaciones_anticipacion_dias  Int?      @default(15)
+  vacaciones_permitir_acumular  Boolean?  @default(true)
+  ultima_actualizacion          DateTime? @default(now()) @db.Timestamp(6)
+  bio_ip                        String?   @default("192.168.100.24") @db.VarChar(50)
+  bio_port                      Int?      @default(4370)
+  bio_key                       String?   @default("1") @db.VarChar(50)
+  bio_device_id                 Int?      @default(2)
+}
+
+model rh_departamentos {
+  id                     Int                @id @default(autoincrement())
+  nombre                 String             @unique @db.VarChar(100)
+  descripcion            String?
+  estatus                String?            @default("Activo") @db.VarChar(20)
+  responsable            String?            @db.VarChar(100)
+  padre_id               Int?
+  rh_departamentos       rh_departamentos?  @relation("rh_departamentosTorh_departamentos", fields: [padre_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_rh_departamentos rh_departamentos[] @relation("rh_departamentosTorh_departamentos")
+  rh_puestos             rh_puestos[]
+}
+
+model rh_empleados {
+  id                           String                      @id @db.VarChar(20)
+  nombre                       String                      @db.VarChar(100)
+  apellidos                    String?                     @db.VarChar(100)
+  fecha_nac                    DateTime?                   @db.Date
+  curp                         String?                     @unique @db.VarChar(25)
+  rfc                          String?                     @unique @db.VarChar(25)
+  puesto_id                    Int?
+  turno_id                     Int?
+  fecha_ingreso                DateTime?                   @db.Date
+  bio_id                       Int?
+  estado                       String?                     @default("Activo") @db.VarChar(20)
+  foto_url                     String?
+  created_at                   DateTime?                   @default(now()) @db.Timestamp(6)
+  correo_empresa               String?                     @db.VarChar(150)
+  celular_empresa              String?                     @db.VarChar(20)
+  vacaciones_acumulables       Boolean?                    @default(true)
+  vacaciones_vencimiento_meses Int?                        @default(6)
+  tipo_empleado                String?                     @default("PLANTA") @db.VarChar(30)
+  rh_asistencia                rh_asistencia[]
+  rh_asistencia_extras         rh_asistencia_extras[]
+  rh_puestos                   rh_puestos?                 @relation(fields: [puesto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rh_turnos                    rh_turnos?                  @relation(fields: [turno_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rh_empleados_biometria       rh_empleados_biometria[]
+  rh_empleados_detalles        rh_empleados_detalles?
+  rh_empleados_documentos      rh_empleados_documentos[]
+  rh_empleados_nomina          rh_empleados_nomina?
+  rh_incidencias               rh_incidencias[]
+  rh_vacaciones_ajustes        rh_vacaciones_ajustes[]
+  rh_vacaciones_solicitudes    rh_vacaciones_solicitudes[]
+  seguimiento_eventos          seguimiento_eventos[]
+}
+
+model rh_empleados_biometria {
+  id             Int            @id @default(autoincrement())
+  empleado_id    String         @db.VarChar(20)
+  biometrico_id  Int
+  id_en_reloj    Int
+  creado_at      DateTime?      @default(now()) @db.Timestamp(6)
+  rh_biometricos rh_biometricos @relation(fields: [biometrico_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_biometrico")
+  rh_empleados   rh_empleados   @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_empleado")
+
+  @@unique([biometrico_id, id_en_reloj])
+  @@unique([empleado_id, biometrico_id])
+}
+
+model rh_empleados_detalles {
+  empleado_id         String       @id @db.VarChar(20)
+  telefono            String?      @db.VarChar(20)
+  direccion           String?
+  tipo_sangre         String?      @db.VarChar(5)
+  contacto_emergencia String?
+  rh_empleados        rh_empleados @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model rh_empleados_documentos {
+  id             Int           @id @default(autoincrement())
+  empleado_id    String?       @db.VarChar(20)
+  tipo_documento String?       @db.VarChar(50)
+  nombre_archivo String
+  ruta_relativa  String
+  fecha_subida   DateTime?     @default(now()) @db.Timestamp(6)
+  rh_empleados   rh_empleados? @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model rh_empleados_nomina {
+  empleado_id       String       @id @db.VarChar(20)
+  nss               String?      @db.VarChar(20)
+  reg_patronal      String?      @db.VarChar(50)
+  tipo_prestaciones String?      @default("DE LEY") @db.VarChar(50)
+  salario_diario    Decimal?     @default(0) @db.Decimal(12, 2)
+  sdi               Decimal?     @default(0) @db.Decimal(12, 2)
+  nomina_asignada   String?      @db.VarChar(50)
+  tipo_contrato     String?      @default("INDETERMINADO") @db.VarChar(50)
+  num_nomina        String?      @db.VarChar(20)
+  rh_empleados      rh_empleados @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model rh_incidencias {
+  id           Int           @id @default(autoincrement())
+  empleado_id  String?       @db.VarChar(20)
+  tipo         String?       @db.VarChar(50)
+  fecha        DateTime      @db.Date
+  descripcion  String?
+  status       String?       @default("Pendiente") @db.VarChar(20)
+  rh_empleados rh_empleados? @relation(fields: [empleado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model rh_puestos {
+  id                   Int               @id @default(autoincrement())
+  nombre               String            @db.VarChar(100)
+  departamento_id      Int?
+  nivel                String?           @db.VarChar(50)
+  sueldo_base_sugerido Decimal?          @default(0) @db.Decimal(12, 2)
+  estatus              String?           @default("Activo") @db.VarChar(20)
+  rh_empleados         rh_empleados[]
+  rh_departamentos     rh_departamentos? @relation(fields: [departamento_id], references: [id], onUpdate: NoAction)
+
+  @@unique([nombre, departamento_id], map: "uq_puesto_depto")
+}
+
+model rh_turnos {
+  id                 Int            @id @default(autoincrement())
+  nombre             String         @db.VarChar(50)
+  entrada            DateTime       @db.Time(6)
+  salida             DateTime       @db.Time(6)
+  dias               String?        @default("L-V") @db.VarChar(50)
+  tolerancia_minutos Int?           @default(10)
+  rh_empleados       rh_empleados[]
+}
+
+model rh_vacaciones_ajustes {
+  id           Int           @id @default(autoincrement())
+  empleado_id  String?       @db.VarChar(20)
+  cantidad     Int
+  motivo       String
+  fecha        DateTime?     @default(now()) @db.Timestamp(6)
+  usuario      String?       @db.VarChar(100)
+  rh_empleados rh_empleados? @relation(fields: [empleado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model rh_vacaciones_solicitudes {
+  id               Int           @id @default(autoincrement())
+  empleado_id      String?       @db.VarChar(20)
+  tipo             String?       @db.VarChar(50)
+  fecha_inicio     DateTime      @db.Date
+  fecha_fin        DateTime      @db.Date
+  dias_solicitados Int?
+  motivo           String?
+  status           String?       @default("Pendiente") @db.VarChar(20)
+  fecha_solicitud  DateTime?     @default(now()) @db.Timestamp(6)
+  rh_empleados     rh_empleados? @relation(fields: [empleado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model seguimiento_accesos_publicos {
+  id                          Int                          @id @default(autoincrement())
+  token_id                    Int?
+  ip_address                  String?                      @db.VarChar(45)
+  user_agent                  String?
+  accessed_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  seguimiento_tokens_publicos seguimiento_tokens_publicos? @relation(fields: [token_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([accessed_at], map: "idx_acceso_fecha")
+  @@index([token_id], map: "idx_acceso_token")
+}
+
+model seguimiento_eventos {
+  id                     Int                    @id @default(autoincrement())
+  asignacion_id          Int
+  estado                 String                 @db.VarChar(50)
+  descripcion            String
+  ubicacion              String?                @db.VarChar(255)
+  metadata               Json?
+  creado_por             String?                @db.VarChar(20)
+  created_at             DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?              @default(now()) @db.Timestamp(6)
+  logistica_asignaciones logistica_asignaciones @relation(fields: [asignacion_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rh_empleados           rh_empleados?          @relation(fields: [creado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([asignacion_id], map: "idx_seguimiento_asignacion")
+  @@index([asignacion_id, created_at], map: "idx_seguimiento_asignacion_fecha")
+  @@index([estado], map: "idx_seguimiento_estado")
+  @@index([created_at], map: "idx_seguimiento_fecha")
+}
+
+model seguimiento_tokens_publicos {
+  id                           Int                            @id @default(autoincrement())
+  asignacion_id                Int
+  token_uuid                   String                         @unique @db.VarChar(36)
+  cliente_email                String?                        @db.VarChar(255)
+  cliente_telefono             String?                        @db.VarChar(20)
+  created_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  expires_at                   DateTime?                      @default(dbgenerated("(CURRENT_TIMESTAMP + '30 days'::interval)")) @db.Timestamp(6)
+  used_count                   Int?                           @default(0)
+  ultima_consulta              DateTime?                      @db.Timestamp(6)
+  activo                       Boolean?                       @default(true)
+  seguimiento_accesos_publicos seguimiento_accesos_publicos[]
+  logistica_asignaciones       logistica_asignaciones         @relation(fields: [asignacion_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([asignacion_id], map: "idx_asignacion_id_token")
+  @@index([expires_at], map: "idx_token_expires")
+  @@index([token_uuid], map: "idx_token_uuid")
+  @@index([token_uuid], map: "idx_tokens_uuid")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model servicios {
+  id_servicio         Int       @id @default(autoincrement())
+  nombre_servicio     String    @db.VarChar(255)
+  clave_sat_servicios String    @db.VarChar(20)
+  precio_unitario     Decimal   @default(0.00) @db.Decimal(10, 2)
+  descripcion         String?
+  activo              Boolean?  @default(true)
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+  updated_at          DateTime? @default(now()) @db.Timestamp(6)
+  clave_serv          String?   @db.VarChar(50)
+  clave_unidad        String?   @db.VarChar(50)
+  clave_interno       String?   @db.VarChar(50)
+
+  @@index([activo], map: "idx_activo")
+  @@index([clave_sat_servicios], map: "idx_clave_sat")
+  @@index([clave_serv], map: "idx_servicios_clave_serv")
+}
+
+model subcategorias {
+  id_subcategoria     Int         @id @default(autoincrement())
+  nombre_subcategoria String      @unique @db.VarChar(50)
+  id_categoria        Int?
+  productos           productos[]
+  categorias          categorias? @relation(fields: [id_categoria], references: [id_categoria], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model usuarios {
+  id_usuario                                                Int                  @id @default(autoincrement())
+  nombre                                                    String               @db.VarChar(80)
+  correo                                                    String               @unique @db.VarChar(120)
+  rol                                                       String?              @db.VarChar(30)
+  estado                                                    String?              @default("Activo") @db.VarChar(20)
+  password_hash                                             String
+  foto                                                      Bytes?
+  reset_password_token                                      String?
+  reset_password_expires                                    DateTime?            @db.Timestamptz(6)
+  dos_factores                                              Boolean?             @default(false)
+  configuracion_smtp                                        configuracion_smtp[]
+  cotizaciones_cotizaciones_creado_porTousuarios            cotizaciones[]       @relation("cotizaciones_creado_porTousuarios")
+  cotizaciones_cotizaciones_id_vendedorTousuarios           cotizaciones[]       @relation("cotizaciones_id_vendedorTousuarios")
+  cotizaciones_cotizaciones_modificado_porTousuarios        cotizaciones[]       @relation("cotizaciones_modificado_porTousuarios")
+  cotizaciones_cotizaciones_supervisor_vendedorTousuarios   cotizaciones[]       @relation("cotizaciones_supervisor_vendedorTousuarios")
+  cotizaciones_cotizaciones_usuario_aproboTousuarios        cotizaciones[]       @relation("cotizaciones_usuario_aproboTousuarios")
+  cotizaciones_cotizaciones_usuario_clonoTousuarios         cotizaciones[]       @relation("cotizaciones_usuario_clonoTousuarios")
+  cotizaciones_cotizaciones_usuario_genero_pdfTousuarios    cotizaciones[]       @relation("cotizaciones_usuario_genero_pdfTousuarios")
+  cotizaciones_cotizaciones_usuario_ultima_accionTousuarios cotizaciones[]       @relation("cotizaciones_usuario_ultima_accionTousuarios")
+  facturas                                                  facturas[]
+  notificaciones_notificaciones_id_usuario_accionTousuarios notificaciones[]     @relation("notificaciones_id_usuario_accionTousuarios")
+  notificaciones_notificaciones_id_usuarioTousuarios        notificaciones[]     @relation("notificaciones_id_usuarioTousuarios")
+  respaldos                                                 respaldos[]
+}
+
+model vehiculos {
+  id                     Int                      @id @default(autoincrement())
+  economico              String                   @unique @db.VarChar(50)
+  placa                  String                   @unique @db.VarChar(20)
+  marca                  String?                  @db.VarChar(50)
+  modelo                 String                   @db.VarChar(50)
+  anio                   Int
+  estatus                String?                  @default("activo") @db.VarChar(20)
+  tipo_vehiculo          String?                  @db.VarChar(30)
+  capacidad_carga        Decimal?                 @db.Decimal(10, 2)
+  kilometraje_inicial    BigInt?                  @default(0)
+  creado_el              DateTime?                @default(now()) @db.Timestamp(6)
+  documentos_vehiculo    documentos_vehiculo[]
+  logistica_asignaciones logistica_asignaciones[]
+  mantenimientos         mantenimientos[]
+
+  @@index([estatus], map: "idx_vehiculos_estatus")
+  @@index([placa], map: "idx_vehiculos_placa")
+}

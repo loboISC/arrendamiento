@@ -238,16 +238,20 @@ async function timbrarXmlSellado(xmlString, fullData) {
     // se debe enviar un JSON que contenga los campos básicos del CFDI 
     // además del XmlContent, de lo contrario falla con NullReferenceException.
     const requestData = {
+      Xml: Buffer.from(xmlString).toString('base64'),
+      xml: Buffer.from(xmlString).toString('base64'),
       XmlContent: Buffer.from(xmlString).toString('base64'),
+      xmlContent: Buffer.from(xmlString).toString('base64'),
       CfdiType: "I",
       Serie: fullData.serie || "A",
       Folio: fullData.folio || "1",
       ExpeditionPlace: fullData.lugarExpedicion,
-      PaymentMethod: fullData.metodoPago || "PUE",
-      PaymentForm: fullData.formaPago || "01",
       Currency: "MXN",
       Subtotal: fullData.totales.subtotal,
+      ...(fullData.totales.descuento > 0 ? { Discount: fullData.totales.descuento } : {}),
       Total: fullData.totales.total,
+      PaymentMethod: fullData.metodoPago || 'PUE',
+      PaymentForm: fullData.formaPago || '01',
       Issuer: {
         Rfc: fullData.emisor.rfc,
         Name: fullData.emisor.razonSocial,
@@ -299,7 +303,7 @@ async function timbrarXmlSellado(xmlString, fullData) {
           Description: c.descripcion,
           UnitPrice: c.valorUnitario,
           Subtotal: c.importe,
-          Discount: c.descuento || 0,
+          Discount: Number(c.descuento || 0),
           TaxObject: c.objetoImp || "02",
           Taxes: itemTaxes.length > 0 ? itemTaxes : undefined,
           Total: c.importe - (c.descuento || 0) + totalImpuestosItem
@@ -328,15 +332,22 @@ async function timbrarXmlSellado(xmlString, fullData) {
       }
     );
 
-    // Normalizar XML recibido en el campo Cfdi (puede venir base64 o escapado)
-    if (response.data && response.data.Cfdi) {
+    const {
+      extraerXmlDesdeRespuestaFacturama,
+      normalizarXmlString
+    } = require('../../../utils/facturacion/xmlUtils');
+
+    let xmlTimbrado = extraerXmlDesdeRespuestaFacturama(response.data || {});
+    if (!xmlTimbrado && response.data?.Id) {
       try {
-        // cargar helper sólo cuando sea necesario para evitar dependencias circulares
-        const { normalizeXmlString } = require('../../../utils/facturacion/xmlUtils');
-        response.data.Cfdi = normalizeXmlString(response.data.Cfdi);
-      } catch (err) {
-        console.warn('[Facturama] Falla al normalizar Cfdi en timbrarXmlSellado:', err.message);
+        xmlTimbrado = await obtenerXmlTimbradoPorId(response.data.Id);
+      } catch (fetchErr) {
+        console.warn('[Facturama] No se pudo descargar XML tras timbrado API-Lite:', fetchErr.message);
       }
+    }
+    if (xmlTimbrado) {
+      response.data.Cfdi = normalizarXmlString(xmlTimbrado);
+      response.data.Xml = response.data.Cfdi;
     }
 
     return response.data;
@@ -438,6 +449,42 @@ function construirCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metod
 }
 
 /**
+ * Descarga el XML timbrado de un CFDI API-Lite por su Id de Facturama.
+ * @param {string} cfdiId Id devuelto por Facturama al timbrar
+ * @returns {Promise<string>} XML en texto plano
+ */
+async function obtenerXmlTimbradoPorId(cfdiId) {
+  const token = obtenerTokenFacturama();
+  const response = await axios.get(
+    `${FACTURAMA_BASE_URL}/cfdi/xml/issuedLite/${cfdiId}`,
+    {
+      headers: {
+        Authorization: `Basic ${token}`,
+        'Content-Type': 'application/json'
+      },
+      responseType: 'json'
+    }
+  );
+
+  const data = response.data;
+  const { normalizarXmlString } = require('../../../utils/facturacion/xmlUtils');
+
+  if (data && typeof data === 'object' && data.Content) {
+    const encoding = String(data.ContentEncoding || 'base64').toLowerCase();
+    const raw = encoding === 'base64'
+      ? Buffer.from(data.Content, 'base64').toString('utf8')
+      : String(data.Content);
+    return normalizarXmlString(raw);
+  }
+
+  if (typeof data === 'string') {
+    return normalizarXmlString(data);
+  }
+
+  throw new Error('Facturama no devolvió XML timbrado en formato conocido.');
+}
+
+/**
  * Cancela una factura en Facturama (Modalidad Multi-emisor / API-Lite v3)
  * @param {string} id ID interno de Facturama o UUID
  * @param {string} motivo Motivo de cancelación (01, 02, 03, 04)
@@ -471,6 +518,7 @@ module.exports = {
   FACTURAMA_BASE_URL,
   cargarCsdAFacturama,
   timbrarXmlSellado,
+  obtenerXmlTimbradoPorId,
   cancelarFacturaFacturama
 };
 

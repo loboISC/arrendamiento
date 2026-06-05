@@ -43,6 +43,11 @@ function formatearMoneda(valor) {
   }).format(Number(valor) || 0);
 }
 
+function numeroSeguro(valor) {
+  const n = Number(valor);
+  return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
+}
+
 class ServicioAplicacionCobranzaNC {
   constructor(repositorio) {
     this.repositorio = repositorio;
@@ -61,6 +66,104 @@ class ServicioAplicacionCobranzaNC {
       [usuarioId]
     );
     return smtpResult.rows[0] || null;
+  }
+
+  obtenerDirectorioNotasCredito() {
+    return process.env.PDF_STORAGE_DIR || path.join(process.cwd(), 'public', 'pdfs');
+  }
+
+  obtenerRutaNotaCredito(nota, campo) {
+    const nombre = String(nota?.[campo] || '').trim();
+    if (!nombre) return null;
+    const ruta = path.join(this.obtenerDirectorioNotasCredito(), nombre);
+    return fs.existsSync(ruta) ? ruta : null;
+  }
+
+  obtenerAdjuntosNotaCredito(nota) {
+    const pdfPath = this.obtenerRutaNotaCredito(nota, 'pdf_path');
+    const xmlPath = this.obtenerRutaNotaCredito(nota, 'xml_path');
+    const adjuntos = [];
+    if (pdfPath) adjuntos.push({ filename: path.basename(pdfPath), path: pdfPath, contentType: 'application/pdf' });
+    if (xmlPath) adjuntos.push({ filename: path.basename(xmlPath), path: xmlPath, contentType: 'application/xml' });
+    return { pdfPath, xmlPath, adjuntos };
+  }
+
+  resolverDestinatarioModal(emailDestinatario) {
+    const destinatario = String(emailDestinatario || '').trim();
+    if (!destinatario || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinatario)) {
+      console.log('[EMAIL] No recipient specified for NC application — skipping');
+      return null;
+    }
+    return destinatario;
+  }
+
+  async calcularProyeccionAplicarAutomatico(nota) {
+    const montoNc = numeroSeguro(nota.total);
+    const deudaActual = await this.repositorio.calcularDeudaCliente(nota.customer_id);
+    const deudaDespues = numeroSeguro(Math.max(deudaActual - montoNc, 0));
+    const facturaOrigenId = Number(nota.id_factura_origen || 0);
+    let saldoFacturaAntes = null;
+    let saldoFacturaDespues = null;
+    if (facturaOrigenId > 0) {
+      saldoFacturaAntes = await this.repositorio.calcularSaldoFacturaLedger(nota.customer_id, facturaOrigenId);
+      saldoFacturaDespues = numeroSeguro(Math.max(saldoFacturaAntes - montoNc, 0));
+    }
+    return { deudaActual, montoNc, deudaDespues, saldoFacturaAntes, saldoFacturaDespues };
+  }
+
+  async calcularProyeccionSaldoFavor(nota) {
+    const montoNc = numeroSeguro(nota.total);
+    const limiteActual = await this.repositorio.obtenerLimiteCredito(nota.customer_id);
+    const deudaActual = await this.repositorio.calcularDeudaCliente(nota.customer_id);
+    const limiteDespues = numeroSeguro(limiteActual + montoNc);
+    const creditoDisponibleProyectado = numeroSeguro(limiteDespues - deudaActual);
+    return { limiteActual, montoNc, limiteDespues, creditoDisponibleProyectado };
+  }
+
+  async enviarCorreoAplicarAutomatico(nota, usuarioId, emailDestinatario, datosFinancieros) {
+    const destinatario = this.resolverDestinatarioModal(emailDestinatario);
+    if (!destinatario) return false;
+
+    const { pdfPath, xmlPath } = this.obtenerAdjuntosNotaCredito(nota);
+    if (!pdfPath) {
+      console.warn('[EMAIL] NC PDF no disponible — no se envió correo de aplicación automática');
+      return false;
+    }
+
+    const smtpConfig = await this.obtenerConfigSmtp(usuarioId);
+    const rfc = String(nota.customer_rfc || '').trim() || 'Cliente';
+    await emailService.enviarNcAplicadaAutomaticamente(
+      destinatario,
+      rfc,
+      datosFinancieros,
+      pdfPath,
+      xmlPath,
+      smtpConfig
+    );
+    return true;
+  }
+
+  async enviarCorreoSaldoFavor(nota, usuarioId, emailDestinatario, datosFinancieros) {
+    const destinatario = this.resolverDestinatarioModal(emailDestinatario);
+    if (!destinatario) return false;
+
+    const { pdfPath, xmlPath } = this.obtenerAdjuntosNotaCredito(nota);
+    if (!pdfPath) {
+      console.warn('[EMAIL] NC PDF no disponible — no se envió correo de saldo a favor');
+      return false;
+    }
+
+    const smtpConfig = await this.obtenerConfigSmtp(usuarioId);
+    const rfc = String(nota.customer_rfc || '').trim() || 'Cliente';
+    await emailService.enviarNcSaldoFavor(
+      destinatario,
+      rfc,
+      datosFinancieros,
+      pdfPath,
+      xmlPath,
+      smtpConfig
+    );
+    return true;
   }
 
   async generarPdfVoucherDevolucion(datos) {
@@ -126,13 +229,15 @@ class ServicioAplicacionCobranzaNC {
   /**
    * Aplicar automáticamente: reduce saldo pendiente de factura relacionada
    */
-  async aplicarAutomaticamente(creditNoteId, usuarioId) {
+  async aplicarAutomaticamente(creditNoteId, usuarioId, emailDestinatario) {
     const nota = await this.repositorio.obtenerPorId(creditNoteId);
     if (!nota) {
       const error = new Error('Nota de crédito no encontrada.');
       error.statusCode = 404;
       throw error;
     }
+
+    const datosFinancieros = await this.calcularProyeccionAplicarAutomatico(nota);
 
     const movimiento = {
       id_cliente: nota.customer_id,
@@ -152,17 +257,25 @@ class ServicioAplicacionCobranzaNC {
       aplicacion_tipo: 'AUTOMATICA'
     });
 
+    let emailEnviado = false;
+    try {
+      emailEnviado = await this.enviarCorreoAplicarAutomatico(nota, usuarioId, emailDestinatario, datosFinancieros);
+    } catch (errEmail) {
+      console.error('[AplicacionCobranzaNC] Error enviando NC aplicada:', errEmail.message);
+    }
+
     return {
       tipo_aplicacion: 'AUTOMATICA',
       mensaje: `Nota de crédito aplicada automáticamente como abono. Saldo del cliente reducido en ${nota.total}`,
-      movimiento_id: nota.id
+      movimiento_id: nota.id,
+      email_enviado: emailEnviado
     };
   }
 
   /**
    * Dejar como saldo a favor: incrementa limite_credito del cliente
    */
-  async dejarComoSaldoFavor(creditNoteId, usuarioId) {
+  async dejarComoSaldoFavor(creditNoteId, usuarioId, emailDestinatario) {
     const nota = await this.repositorio.obtenerPorId(creditNoteId);
     if (!nota) {
       const error = new Error('Nota de crédito no encontrada.');
@@ -170,6 +283,7 @@ class ServicioAplicacionCobranzaNC {
       throw error;
     }
 
+    const datosFinancieros = await this.calcularProyeccionSaldoFavor(nota);
     const nuevoLimite = await this.repositorio.incrementarLimiteCredito(nota.customer_id, nota.total);
 
     const movimiento = {
@@ -191,12 +305,20 @@ class ServicioAplicacionCobranzaNC {
       aplicacion_tipo: 'SALDO_FAVOR'
     });
 
+    let emailEnviado = false;
+    try {
+      emailEnviado = await this.enviarCorreoSaldoFavor(nota, usuarioId, emailDestinatario, datosFinancieros);
+    } catch (errEmail) {
+      console.error('[AplicacionCobranzaNC] Error enviando NC saldo a favor:', errEmail.message);
+    }
+
     return {
       tipo_aplicacion: 'SALDO_FAVOR',
       mensaje: `Se agregaron ${formatearMoneda(nota.total)} al límite de crédito del cliente. Nuevo límite: ${formatearMoneda(nuevoLimite)}.`,
       movimiento_id: nota.id,
       saldo_disponible: nota.total,
-      nuevo_limite_credito: nuevoLimite
+      nuevo_limite_credito: nuevoLimite,
+      email_enviado: emailEnviado
     };
   }
 
@@ -256,15 +378,22 @@ class ServicioAplicacionCobranzaNC {
     }
 
     let emailEnviado = false;
-    if (destinatario && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinatario)) {
+    if (!destinatario || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinatario)) {
+      console.log('[EMAIL] No recipient specified for NC application — skipping');
+    } else {
       try {
         const smtpConfig = await this.obtenerConfigSmtp(usuarioId);
+        const { adjuntos } = this.obtenerAdjuntosNotaCredito(nota);
         const contenidoHtml = `
           <p>Estimado cliente,</p>
-          <p>Se ha registrado su solicitud de devolución derivada de la nota de crédito <strong>${nota.folio || nota.uuid || nota.id}</strong>.</p>
+          <p>Se ha registrado su solicitud de devolución derivada de la nota de crédito ${nota.folio || nota.uuid || nota.id}.</p>
           <p><strong>Monto:</strong> ${formatearMoneda(nota.total)}<br>
           <strong>Fecha estimada de pago:</strong> ${formatearFechaMx(fechaEstimada)} (${diasHabiles} días hábiles)</p>
-          <p>Adjunto encontrará el comprobante de devolución para su control.</p>
+          <p style="white-space: pre-line;">Adjunto encontrarás:
+
+Comprobante de pago de devolución
+Nota de crédito (PDF)
+Nota de crédito (XML)</p>
         `;
         await emailService.enviarComprobanteAbono(
           destinatario,
@@ -272,7 +401,8 @@ class ServicioAplicacionCobranzaNC {
           contenidoHtml,
           pdfInfo.pdf_path,
           pdfInfo.pdf_filename,
-          smtpConfig
+          smtpConfig,
+          adjuntos
         );
         emailEnviado = true;
       } catch (errEmail) {
@@ -301,10 +431,10 @@ class ServicioAplicacionCobranzaNC {
     switch (String(tipoAplicacion).toUpperCase()) {
       case 'APLICAR':
       case 'AUTOMATICA':
-        return this.aplicarAutomaticamente(creditNoteId, usuarioId);
+        return this.aplicarAutomaticamente(creditNoteId, usuarioId, emailDestinatario);
 
       case 'SALDO_FAVOR':
-        return this.dejarComoSaldoFavor(creditNoteId, usuarioId);
+        return this.dejarComoSaldoFavor(creditNoteId, usuarioId, emailDestinatario);
 
       case 'DEVOLUCION':
         return this.generarDevolucion(creditNoteId, usuarioId, emailDestinatario);

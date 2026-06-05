@@ -2335,9 +2335,54 @@ function formatCurrency(value) {
 }
 
 function obtenerFacturaOrigenDesdeCredito(credito) {
-  const raw = credito?.id_factura ?? credito?.idFactura ?? null;
-  const val = Number(raw);
-  return Number.isInteger(val) && val > 0 ? val : null;
+  const facturaData = obtenerFacturaOrigenNormalizadaDesdeCredito(credito);
+  return facturaData?.factura_origen_id || null;
+}
+
+function obtenerFacturaOrigenNormalizadaDesdeCredito(credito) {
+  const fuentes = [
+    { key: 'id_factura', value: credito?.id_factura },
+    { key: 'factura_id', value: credito?.factura_id },
+    { key: 'idFactura', value: credito?.idFactura }
+  ];
+  const sourceKeys = fuentes.filter((item) => item.value !== undefined && item.value !== null).map((item) => item.key);
+  for (const fuente of fuentes) {
+    const raw = fuente.value;
+    if (typeof raw === 'number' && Number.isInteger(raw) && raw > 0) {
+      return {
+        factura_origen_id: raw,
+        source_key: fuente.key,
+        source_keys: sourceKeys
+      };
+    }
+    if (typeof raw === 'string' && /^\d+$/.test(raw.trim())) {
+      const parsed = Number(raw.trim());
+      if (Number.isInteger(parsed) && parsed > 0) {
+        return {
+          factura_origen_id: parsed,
+          source_key: fuente.key,
+          source_keys: sourceKeys
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function obtenerDebugIdsCredito(credito) {
+  const facturaData = obtenerFacturaOrigenNormalizadaDesdeCredito(credito);
+  return {
+    id_factura: credito?.id_factura ?? null,
+    factura_id: credito?.factura_id ?? null,
+    idFactura: credito?.idFactura ?? null,
+    referencia_id: credito?.referencia_id ?? null,
+    factura_origen_id: credito?.factura_origen_id ?? null,
+    id: credito?.id ?? null,
+    folio: credito?.folio ?? null,
+    folioCfdi: credito?.folioCfdi ?? credito?.folio_cfdi ?? null,
+    id_factura_resuelto: facturaData?.factura_origen_id ?? null,
+    id_factura_source_key: facturaData?.source_key ?? null
+  };
 }
 
 function renderRowsCreditos(creditos, facturaSeleccionada = null) {
@@ -2516,11 +2561,11 @@ function htmlModalSaldoCliente(cliente) {
 }
 
 function htmlModalAbonoCredito(cliente, creditoSeleccionado = null) {
-  const saldoGlobal = Number(cliente?.deuda || 0);
+  const facturaIdSeleccionada = obtenerFacturaOrigenDesdeCredito(creditoSeleccionado);
   const folioSeleccionado = creditoSeleccionado?.folio || creditoSeleccionado?.folioCfdi || creditoSeleccionado?.folio_cfdi || 'N/D';
   const saldoSeleccionado = Number(creditoSeleccionado?.saldo || 0);
-  // El servidor valida contra el saldo de la factura seleccionada, no la deuda global.
-  const saldoMaximoAbono = saldoSeleccionado > 0 ? saldoSeleccionado : saldoGlobal;
+  const saldoMaximoAbono = saldoSeleccionado > 0 ? saldoSeleccionado : 0;
+  const debugIds = obtenerDebugIdsCredito(creditoSeleccionado || {});
 
   return `
     <div class="abono-credito-modal">
@@ -2543,7 +2588,11 @@ function htmlModalAbonoCredito(cliente, creditoSeleccionado = null) {
       <div class="abono-divider"></div>
 
       <div class="abono-selected-credit">
-        Credito seleccionado: Folio ${escapeHtml(String(folioSeleccionado))} | Saldo ${formatCurrency(saldoSeleccionado)}
+        Credito seleccionado: Factura #${escapeHtml(String(facturaIdSeleccionada || 'N/D'))} | Folio ${escapeHtml(String(folioSeleccionado))} | Saldo ${formatCurrency(saldoSeleccionado)}
+      </div>
+
+      <div class="abono-selected-credit" style="margin-top:8px;font-size:12px;opacity:.85;">
+        Debug IDs: ${escapeHtml(JSON.stringify(debugIds))}
       </div>
 
       <div class="abono-row">
@@ -2750,7 +2799,14 @@ async function obtenerDetalleCreditoCliente(clienteId) {
   return data.data;
 }
 
-async function guardarAbonoCreditoEnServidor(payload) {
+async function guardarAbonoCreditoEnServidor(payload, debugMeta = {}) {
+  const normalizedDebugPayload = {
+    id_cliente: Number(payload?.id_cliente || 0),
+    factura_origen_id: Number(payload?.factura_origen_id || 0),
+    factura_uuid: String(debugMeta?.factura_uuid || '').trim(),
+    source_keys: Array.isArray(debugMeta?.source_keys) ? debugMeta.source_keys : []
+  };
+  console.log('[ABONO_DEBUG_FRONT] payload normalizado /api/clientes/credito/abonos =', normalizedDebugPayload);
   console.log('[ABONO_DEBUG_FRONT] payload /api/clientes/credito/abonos =', payload);
   const response = await fetch('/api/clientes/credito/abonos', {
     method: 'POST',
@@ -2866,10 +2922,35 @@ async function abrirModalAbonoCredito() {
 
   const saldoActual = Number(cliente.deuda || 0);
   const detalleCliente = detalleCreditoCache.get(String(clienteId)) || null;
-  const facturaSeleccionada = creditoSeleccionadoPorCliente.get(String(clienteId)) || null;
+  const facturaSeleccionadaRaw = creditoSeleccionadoPorCliente.get(String(clienteId)) || null;
+  const facturaSeleccionada = Number(facturaSeleccionadaRaw || 0);
   const creditoSeleccionado = Array.isArray(detalleCliente?.creditos)
     ? detalleCliente.creditos.find((c) => Number(obtenerFacturaOrigenDesdeCredito(c)) === Number(facturaSeleccionada))
     : null;
+  const facturaOrigenIdSeleccionada = obtenerFacturaOrigenDesdeCredito(creditoSeleccionado);
+
+  if (!Number.isInteger(facturaSeleccionada) || facturaSeleccionada <= 0 || !creditoSeleccionado || !Number.isInteger(facturaOrigenIdSeleccionada)) {
+    const debugSeleccion = {
+      clienteId,
+      facturaSeleccionadaRaw,
+      facturaSeleccionada,
+      facturaOrigenIdSeleccionada,
+      creditos: Array.isArray(detalleCliente?.creditos)
+        ? detalleCliente.creditos.slice(0, 20).map((c) => obtenerDebugIdsCredito(c))
+        : []
+    };
+    Swal.fire(
+      'Seleccione un credito valido',
+      `No se pudo resolver id_factura para el credito seleccionado. Debug: ${escapeHtml(JSON.stringify(debugSeleccion))}`,
+      'warning'
+    );
+    return;
+  }
+
+  if (Number(creditoSeleccionado?.saldo || 0) <= 0) {
+    Swal.fire('Credito sin saldo', 'El credito seleccionado no tiene saldo pendiente para aplicar abono.', 'info');
+    return;
+  }
 
   await Swal.fire({
     title: '',
@@ -2958,9 +3039,36 @@ async function abrirModalAbonoCredito() {
                 return Number(c?.saldo || 0) > 0 && factId && Number(factId) === Number(facturaSeleccionada);
               })
               : null;
+            const facturaOrigenData = obtenerFacturaOrigenNormalizadaDesdeCredito(facturaOrigen);
+            const facturaOrigenId = facturaOrigenData?.factura_origen_id ?? null;
+            const relatedUuid = String(facturaOrigen?.folioCfdi || facturaOrigen?.folio_cfdi || '').trim();
+            const requiereUuidComplemento = true;
 
-            if (!facturaOrigen) {
-              Swal.fire('Seleccione un credito', 'Debe seleccionar en la tabla el credito al que desea aplicar el abono.', 'info');
+            if (!facturaOrigen || !Number.isInteger(facturaOrigenId) || facturaOrigenId <= 0) {
+              const debugFactura = {
+                clienteId,
+                facturaSeleccionada,
+                facturaOrigen: facturaOrigen ? obtenerDebugIdsCredito(facturaOrigen) : null
+              };
+              Swal.fire(
+                'Seleccione un credito',
+                `Debe seleccionar un credito con id_factura valido. Debug: ${escapeHtml(JSON.stringify(debugFactura))}`,
+                'info'
+              );
+              return;
+            }
+
+            if (requiereUuidComplemento && !relatedUuid) {
+              const debugUuid = {
+                clienteId,
+                facturaSeleccionada,
+                facturaOrigen: obtenerDebugIdsCredito(facturaOrigen)
+              };
+              Swal.fire(
+                'Factura origen sin UUID',
+                `El credito seleccionado no tiene UUID de factura valido para timbrar complemento de pago. Debug: ${escapeHtml(JSON.stringify(debugUuid))}`,
+                'warning'
+              );
               return;
             }
 
@@ -2973,7 +3081,10 @@ async function abrirModalAbonoCredito() {
               referencia,
               pago_con: confirmacion.pagoCon,
               cambio: confirmacion.cambio,
-              factura_origen_id: obtenerFacturaOrigenDesdeCredito(facturaOrigen)
+              factura_origen_id: facturaOrigenId
+            }, {
+              factura_uuid: relatedUuid,
+              source_keys: facturaOrigenData?.source_keys || []
             });
 
             let uuidComplemento = null;
@@ -2986,7 +3097,7 @@ async function abrirModalAbonoCredito() {
                 referencia,
                 moneda,
                 {
-                  relatedUuid: facturaOrigen?.folioCfdi || facturaOrigen?.folio_cfdi || '',
+                  relatedUuid,
                   relatedSerie: '',
                   relatedFolio: facturaOrigen?.folio || '',
                   paymentMethod: 'PPD',

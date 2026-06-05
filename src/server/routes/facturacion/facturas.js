@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 console.log('[ROUTES] Cargando rutas de facturación...');
 const facturacionController = require('../../controllers/facturacion/facturacion');
+const reporteMensualController = require('../../controllers/facturacion/reporteMensualController');
 const { authenticateToken } = require('../../middleware/auth');
 const roles = require('../../middleware/roles');
 
@@ -64,6 +65,10 @@ const roles = require('../../middleware/roles');
 // Obtener todas las facturas
 router.get('/', authenticateToken, facturacionController.obtenerFacturas);
 
+// Reporte Mensual XLSX export
+router.get('/reporte-mensual', authenticateToken, reporteMensualController.generarReporteMensual);
+
+
 /**
  * @swagger
  * /api/facturas/timbrar:
@@ -110,6 +115,11 @@ router.get('/', authenticateToken, facturacionController.obtenerFacturas);
  */
 // Vista previa de factura (sin timbrar)
 router.post('/vista-previa', authenticateToken, facturacionController.vistaPreviaFactura);
+
+// Borradores de factura (timbrado)
+router.post('/borrador', authenticateToken, facturacionController.guardarBorradorFactura);
+router.get('/borradores', authenticateToken, facturacionController.listarBorradoresFactura);
+router.get('/borrador/:id_factura', authenticateToken, facturacionController.obtenerBorradorFactura);
 
 // Timbrar nueva factura
 router.post('/timbrar', authenticateToken, facturacionController.timbrarFactura);

@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../src/app');
+const app = require('../../src/server/app');
 const db = require('../../src/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -15,9 +15,49 @@ describe('Auth Controller', () => {
         estado: 'Activo'
     };
 
+    let nextQueryResponse = null;
+    let nextQueryError = null;
+
     beforeAll(async () => {
         // Generar password hash para el usuario mock
         mockUser.password_hash = await bcrypt.hash('password123', 10);
+    });
+
+    beforeEach(() => {
+        nextQueryResponse = null;
+        nextQueryError = null;
+
+        db.query.mockImplementation((sql, params) => {
+            // Consulta del middleware de mantenimiento
+            if (sql.includes('configuracion_sistema')) {
+                return Promise.resolve({
+                    rows: [{ modo_mantenimiento: false, modulos_mantenimiento: '' }],
+                    rowCount: 1
+                });
+            }
+            
+            // Consulta de actualización de último login
+            if (sql.includes('UPDATE usuarios SET ultimo_login')) {
+                return Promise.resolve({ rows: [], rowCount: 1 });
+            }
+
+            // Error inyectado por el test
+            if (nextQueryError) {
+                const err = nextQueryError;
+                nextQueryError = null;
+                return Promise.reject(err);
+            }
+
+            // Respuesta inyectada por el test
+            if (nextQueryResponse) {
+                const resp = nextQueryResponse;
+                nextQueryResponse = null;
+                return Promise.resolve(resp);
+            }
+
+            // Comportamiento por defecto
+            return Promise.resolve({ rows: [], rowCount: 0 });
+        });
     });
 
     afterEach(() => {
@@ -27,11 +67,10 @@ describe('Auth Controller', () => {
 
     describe('POST /api/auth/login', () => {
         it('debería retornar token con credenciales válidas', async () => {
-            // Mock de la query de base de datos
-            db.query.mockResolvedValueOnce({
+            nextQueryResponse = {
                 rows: [mockUser],
                 rowCount: 1
-            });
+            };
 
             const res = await request(app)
                 .post('/api/auth/login')
@@ -58,18 +97,7 @@ describe('Auth Controller', () => {
         });
 
         it('debería retornar 401 con usuario inexistente', async () => {
-            // Mock retorna usuario no encontrado
-            db.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0
-            });
-
-            // Segunda consulta también vacía (por correo)
-            db.query.mockResolvedValueOnce({
-                rows: [],
-                rowCount: 0
-            });
-
+            // Ambos intentos (por nombre y correo) retornarán vacío por defecto
             const res = await request(app)
                 .post('/api/auth/login')
                 .send({
@@ -82,10 +110,10 @@ describe('Auth Controller', () => {
         });
 
         it('debería retornar 401 con contraseña incorrecta', async () => {
-            db.query.mockResolvedValueOnce({
+            nextQueryResponse = {
                 rows: [mockUser],
                 rowCount: 1
-            });
+            };
 
             const res = await request(app)
                 .post('/api/auth/login')
@@ -99,8 +127,7 @@ describe('Auth Controller', () => {
         });
 
         it('debería manejar errores de base de datos', async () => {
-            db.query.mockRejectedValueOnce(new Error('Database error'));
-            db.query.mockRejectedValueOnce(new Error('Database error'));
+            nextQueryError = new Error('Database error');
 
             const res = await request(app)
                 .post('/api/auth/login')
@@ -113,7 +140,7 @@ describe('Auth Controller', () => {
         });
     });
 
-    describe('POST /api/auth/verify-token', () => {
+    describe('GET /api/auth/verify', () => {
         it('debería verificar un token válido', async () => {
             const token = jwt.sign(
                 { id: mockUser.id_usuario, username: mockUser.nombre },
@@ -121,7 +148,7 @@ describe('Auth Controller', () => {
                 { expiresIn: '1h' }
             );
 
-            db.query.mockResolvedValueOnce({
+            nextQueryResponse = {
                 rows: [{
                     id_usuario: mockUser.id_usuario,
                     nombre: mockUser.nombre,
@@ -129,10 +156,10 @@ describe('Auth Controller', () => {
                     rol: mockUser.rol
                 }],
                 rowCount: 1
-            });
+            };
 
             const res = await request(app)
-                .post('/api/auth/verify-token')
+                .get('/api/auth/verify')
                 .set('Authorization', `Bearer ${token}`);
 
             expect(res.statusCode).toBe(200);
@@ -142,7 +169,7 @@ describe('Auth Controller', () => {
 
         it('debería retornar 401 sin token', async () => {
             const res = await request(app)
-                .post('/api/auth/verify-token');
+                .get('/api/auth/verify');
 
             expect(res.statusCode).toBe(401);
             expect(res.body.error).toBe('Token requerido');
@@ -150,7 +177,7 @@ describe('Auth Controller', () => {
 
         it('debería retornar 401 con token inválido', async () => {
             const res = await request(app)
-                .post('/api/auth/verify-token')
+                .get('/api/auth/verify')
                 .set('Authorization', 'Bearer invalid_token');
 
             expect(res.statusCode).toBe(401);
@@ -165,7 +192,7 @@ describe('Auth Controller', () => {
             );
 
             const res = await request(app)
-                .post('/api/auth/verify-token')
+                .get('/api/auth/verify')
                 .set('Authorization', `Bearer ${expiredToken}`);
 
             expect(res.statusCode).toBe(401);
@@ -181,10 +208,10 @@ describe('Auth Controller', () => {
                 { expiresIn: '1h' }
             );
 
-            db.query.mockResolvedValueOnce({
+            nextQueryResponse = {
                 rows: [{ password_hash: mockUser.password_hash }],
                 rowCount: 1
-            });
+            };
 
             const res = await request(app)
                 .post('/api/auth/verify-password')
@@ -202,10 +229,10 @@ describe('Auth Controller', () => {
                 { expiresIn: '1h' }
             );
 
-            db.query.mockResolvedValueOnce({
+            nextQueryResponse = {
                 rows: [{ password_hash: mockUser.password_hash }],
                 rowCount: 1
-            });
+            };
 
             const res = await request(app)
                 .post('/api/auth/verify-password')

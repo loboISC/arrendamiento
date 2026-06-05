@@ -23,7 +23,7 @@ class XmlService {
      * Genera la estructura básica de un CFDI 4.0
      */
     construirCfdi40(data) {
-        const { emisor, receptor, conceptos, totales, serie, folio, formaPago, metodoPago, condicionesPago, lugarExpedicion, informacionGlobal } = data;
+        const { emisor, receptor, conceptos, totales, serie, folio, formaPago, metodoPago, condicionesPago, lugarExpedicion, informacionGlobal, cfdiRelacionados } = data;
 
         const comprobanteAttrs = {
             'xmlns:cfdi': 'http://www.sat.gob.mx/cfd/4',
@@ -54,6 +54,11 @@ class XmlService {
                 'Meses': informacionGlobal.meses,
                 'Año': informacionGlobal.año
             }) : null,
+            cfdiRelacionados && cfdiRelacionados.foliosFiscales && cfdiRelacionados.foliosFiscales.length > 0 ? this.crearNodo('cfdi:CfdiRelacionados', {
+                'TipoRelacion': cfdiRelacionados.tipoRelacion
+            }, cfdiRelacionados.foliosFiscales.map(uuid => 
+                this.crearNodo('cfdi:CfdiRelacionado', { 'UUID': uuid })
+            )) : null,
             this.crearNodo('cfdi:Emisor', {
                 'Rfc': emisor.rfc,
                 'Nombre': emisor.razonSocial,
@@ -137,6 +142,23 @@ class XmlService {
             const ia = infoNode.attributes;
             ['Periodicidad', 'Meses', 'Año'].forEach(f => {
                 if (ia[f] !== undefined) cadena += ia[f] + '|';
+            });
+        }
+
+        // 2.1. CFDI Relacionados
+        const relacionadosNode = node.children.find(n => n.name === 'cfdi:CfdiRelacionados');
+        if (relacionadosNode) {
+            const ra = relacionadosNode.attributes;
+            if (ra.TipoRelacion !== undefined) {
+                cadena += ra.TipoRelacion + '|';
+            }
+            relacionadosNode.children.forEach(relacionado => {
+                if (relacionado.name === 'cfdi:CfdiRelacionado') {
+                    const u = relacionado.attributes.UUID;
+                    if (u !== undefined) {
+                        cadena += u + '|';
+                    }
+                }
             });
         }
 

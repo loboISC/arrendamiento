@@ -8,5 +8,12 @@ pdfs/
 coverage/
 *.lcov
 tests/temp/
+
 # Docker Compose secrets
 docker-compose*.yml
+
+# Caveman / Cursor skills
+.agents/
+.cursor/rules/
+skills-lock.json
+/src/generated/prisma
