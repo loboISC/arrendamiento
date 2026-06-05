@@ -190,11 +190,11 @@ async function verDetalles(id) {
       modalHTML += '</div>';
     }
 
-    // Botones de acción
-    modalHTML += '<div style="display: flex; gap: 10px; margin-top: 20px;">';
-    modalHTML += '<button class="btn-primary" onclick="vistaPreviaPDF(' + cotizacion.id_cotizacion + ')" style="flex: 1;"><i class="fa fa-file-pdf"></i> Vista previa PDF</button>';
-    modalHTML += '<button class="btn-primary" onclick="cerrarModal()" style="flex: 1; background: #6b7280;"><i class="fa fa-times"></i> Cerrar</button>';
-    modalHTML += '</div>';
+    // Botones de acción eliminados a petición del usuario.
+    // modalHTML += '<div style="display: flex; gap: 10px; margin-top: 20px;">';
+    // modalHTML += '<button class="btn-primary" onclick="vistaPreviaPDF(' + cotizacion.id_cotizacion + ')" style="flex: 1;"><i class="fa fa-file-pdf"></i> Vista previa PDF</button>';
+    // modalHTML += '<button class="btn-primary" onclick="cerrarModal()" style="flex: 1; background: #6b7280;"><i class="fa fa-times"></i> Cerrar</button>';
+    // modalHTML += '</div>';
     modalHTML += '</div>';
 
     // Actualizar modal

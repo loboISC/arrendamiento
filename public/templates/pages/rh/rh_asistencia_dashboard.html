@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Asistencia - RH</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../styles/rh/rh_vars.css">
+    <link rel="stylesheet" href="../../styles/rh/rh_asistencia_dashboard.css">
+</head>
+<body class="dashboard-body">
+    <div id="rh-toast" class="rh-toast"></div>
+
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-main">
+                <h1><i class="fa-solid fa-chart-line"></i> Dashboard de Gestión de Asistencia</h1>
+                <p>Análisis quincenal y alertas de ausentismo</p>
+            </div>
+            <div class="header-actions">
+                <div class="filter-group">
+                    <label for="locationFilter">Ubicación:</label>
+                    <select id="locationFilter" class="form-control">
+                        <option value="all">Todas las Plantas</option>
+                        <option value="101">Corporativo CDMX</option>
+                        <option value="102">Planta Texcoco</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="periodFilter">Periodo:</label>
+                    <select id="periodFilter" class="form-control">
+                        <option value="1">1ra Quincena (Día 1-15)</option>
+                        <option value="2">2da Quincena (Día 16-Fin)</option>
+                    </select>
+                </div>
+                <button id="btnRefresh" class="btn-refresh">
+                    <i class="fa-solid fa-sync"></i> Actualizar
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Grid -->
+        <div class="kpi-grid">
+            <div class="kpi-card attendance-rate">
+                <div class="kpi-icon"><i class="fa-solid fa-user-check"></i></div>
+                <div class="kpi-info">
+                    <span class="kpi-label">ASISTENCIA GLOBAL</span>
+                    <h2 id="statAttendanceRate">--%</h2>
+                    <span class="kpi-trend up"><i class="fa-solid fa-caret-up"></i> +2.4% vs ant.</span>
+                </div>
+            </div>
+
+            <div class="kpi-card absences-alert">
+                <div class="kpi-icon"><i class="fa-solid fa-user-xmark"></i></div>
+                <div class="kpi-info">
+                    <span class="kpi-label">FALTAS CRÍTICAS (+3)</span>
+                    <h2 id="statCriticalAbsences">--</h2>
+                    <span class="kpi-subtext">Requieren atención inmediata</span>
+                </div>
+            </div>
+
+            <div class="kpi-card lateness-avg">
+                <div class="kpi-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                <div class="kpi-info">
+                    <span class="kpi-label">PROMEDIO RETARDO</span>
+                    <h2 id="statAvgLate">-- min</h2>
+                    <span class="kpi-subtext">En toda la quincena</span>
+                </div>
+            </div>
+
+            <div class="kpi-card unlinked-records">
+                <div class="kpi-icon"><i class="fa-solid fa-link-slash"></i></div>
+                <div class="kpi-info">
+                    <span class="kpi-label">IDS SIN VINCULAR</span>
+                    <h2 id="statUnlinked">--</h2>
+                    <span class="kpi-subtext">Registros desconocidos</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Tabla de Faltas Críticas -->
+            <div class="grid-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-triangle-exclamation text-warning"></i> Semáforo de Incidencias</h3>
+                    <span class="badge-warning" style="background:var(--warning); color:#fff; padding:4px 10px; border-radius:12px; font-weight:bold;">Monitoreo General</span>
+                </div>
+                <div class="card-body">
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Empleado</th>
+                                <th>Planta</th>
+                                <th>Asistencias</th>
+                                <th>Faltas</th>
+                                <th>Retardos</th>
+                                <th>Estado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="criticalAbsencesBody">
+                            <!-- Se llena via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Ranking de Puntualidad -->
+            <div class="grid-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-star text-warning"></i> Empleados Estrella</h3>
+                    <span class="badge-success">Puntualidad 100%</span>
+                </div>
+                <div class="card-body">
+                    <ul id="perfectAttendanceList" class="ranking-list">
+                        <!-- Se llena via JS -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../scripts/rh/rh_asistencia_dashboard.js"></script>
+</body>
+</html>

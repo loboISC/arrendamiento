@@ -195,8 +195,8 @@
           direccion: c.direccion_entrega || '',
           kilometros: Number(c.entrega_kilometros || c.distancia_km || 0)
         },
-        condiciones: c.condiciones || '',
-        observaciones: c.notas || c.observaciones || '',
+        condiciones: c.condiciones || c.notas || '',
+        observaciones: c.observaciones || c.entrega_referencia || '',
         configuracion_especial: c.configuracion_especial || {},
         itemDiscounts: (function () {
           try {
@@ -219,7 +219,8 @@
       console.log('[REPORTE] Snapshot construido:', snapshot);
       currentSnapshot = snapshot;
 
-      // Guardar en localStorage para que el flujo existente funcione
+      // Guardar en ambos storages para que readActiveQuote lea datos frescos
+      try { sessionStorage.setItem('active_quote', JSON.stringify(snapshot)); } catch (_) { }
       try { localStorage.setItem('active_quote', JSON.stringify(snapshot)); } catch (_) { }
       loadedFromDB = true;
       return snapshot;
@@ -238,7 +239,7 @@
       if (!el) return;
 
       const modo = String(currentMode || 'MIXTO').toUpperCase();
-      
+
       if (modo === 'RENTA' || modo === 'VENTA') {
         el.textContent = modo;
         el.style.display = 'block';
@@ -539,9 +540,11 @@
 
   function populateObservations(data) {
     try {
-      // 1) Desde snapshot del reporte si viene incluido
-      let obs = (data && (data.observaciones || data.observations || data.notas || data.nota)) ||
-        (currentSnapshot && (currentSnapshot.observaciones || currentSnapshot.observations || currentSnapshot.notas || currentSnapshot.nota)) || '';
+      let obs = '';
+      
+      // 1) Opener textarea del paso 3 (mayor prioridad si esta abierto)
+      try { if (window.opener && window.opener.document) { obs = window.opener.document.getElementById('cr-observations')?.value || ''; } } catch (_) { }
+
       // 2) Local/session storage
       if (!obs) {
         try { obs = sessionStorage.getItem('cr_observations') || ''; } catch (_) { }
@@ -549,10 +552,14 @@
           try { obs = localStorage.getItem('cr_observations') || ''; } catch (_) { }
         }
       }
-      // 3) Opener textarea del paso 3
+
+      // 3) Desde snapshot del reporte si viene incluido
+      // Buscar en observaciones, observations y notas (el snapshot usa 'notas' para observaciones)
       if (!obs) {
-        try { if (window.opener && window.opener.document) { obs = window.opener.document.getElementById('cr-observations')?.value || ''; } } catch (_) { }
+        obs = (data && (data.observaciones || data.observations || data.notas)) ||
+          (currentSnapshot && (currentSnapshot.observaciones || currentSnapshot.observations || currentSnapshot.notas)) || '';
       }
+
       setObservationsOutput(obs);
       return obs;
     } catch (_) { setObservationsOutput(''); }
@@ -835,7 +842,7 @@
     let finalSubtotal = subtotal;
     let finalDiscount = calculatedDiscount;
     let finalShipping = Number(currentMeta?.shipping || 0);
-    
+
     // Para RENTA: IVA se aplica sobre (renta X días + envío - descuento)
     // Para VENTA: IVA se aplica sobre (subtotal - descuento)
     let finalIva = 0;
@@ -846,7 +853,7 @@
         finalIva = ((finalSubtotal - finalDiscount) * 0.16);
       }
     }
-    
+
     let finalTotal = (finalSubtotal - finalDiscount) + finalIva + finalShipping;
 
     try {
@@ -868,7 +875,7 @@
         const openerIva = readSummaryValueFromOpener('IVA');
         const openerTotal = readSummaryValueFromOpener('TOTAL');
         const openerEnvio = readSummaryValueFromOpener('COSTO DE ENVÍO');
-        
+
         if (openerSubtotal != null) finalSubtotal = openerSubtotal;
         if (openerIva != null) finalIva = openerIva;
         if (openerTotal != null) finalTotal = openerTotal;
@@ -1756,19 +1763,19 @@
     }
   }
   function generateTestPDF() { generatePDF(); } function generatePDFWithPrint() { generatePDF(); }
-  function wireButtons() { 
-    const btn = document.getElementById('download-pdf-btn'); 
-    if (btn) { 
+  function wireButtons() {
+    const btn = document.getElementById('download-pdf-btn');
+    if (btn) {
       // Evitar doble descarga: Si pdf_generator.js ya expuso su generatePDF global, no añadimos el nuestro al botón.
       // pdf_generator.js se encargará de invocar nuestro fallbackGeneratePDF si algo falla.
       if (typeof window.generatePDF !== 'function') {
-        btn.addEventListener('click', generatePDF); 
+        btn.addEventListener('click', generatePDF);
       }
-    } 
-    window.printReport = printReport; 
-    window.generateTestPDF = generateTestPDF; 
-    window.generatePDFWithPrint = generatePDFWithPrint; 
-    window.fallbackGeneratePDF = generatePDF; 
+    }
+    window.printReport = printReport;
+    window.generateTestPDF = generateTestPDF;
+    window.generatePDFWithPrint = generatePDFWithPrint;
+    window.fallbackGeneratePDF = generatePDF;
   }
   function maybeAutoGenerate() { try { const params = new URLSearchParams(window.location.search); if (params.get('auto') === '1') { setTimeout(() => { generatePDF(); }, 700); } } catch (e) { } }
   function goBack() {
@@ -1805,6 +1812,11 @@
     maybeAutoGenerate();
     applyHeaderFallbacks();
     actualizarMarcaDeAgua();
+    // Poblar observaciones desde snapshot (crítico para flujo ?id=X desde BD)
+    populateObservations(currentSnapshot);
+    // Poblar condiciones y header desde snapshot
+    try { populateHeaderFromSnapshot(currentSnapshot); } catch (_) { }
+    try { setConditionsFromSnapshot(currentSnapshot); } catch (_) { }
     // Asegurar tabla de costos visible y observar cambios de filas
 
     try { forceStaticTotals(); ensureTotalsVisible(); observeSummaryRows(); setTimeout(() => { alignTotalsToImporte(); showTotalsFallbackIfHidden(); }, 0); } catch (_) { }
@@ -1824,6 +1836,9 @@
       const params = new URLSearchParams(window.location.search);
       const cotizacionId = params.get('id');
       if (cotizacionId) {
+        // Limpiar caché viejo para evitar mostrar cotización anterior
+        try { sessionStorage.removeItem('active_quote'); } catch (_) { }
+        try { localStorage.removeItem('active_quote'); } catch (_) { }
         const dbSnapshot = await loadFromDatabase(cotizacionId);
         if (dbSnapshot) {
           // Procesar el snapshot cargado desde BD

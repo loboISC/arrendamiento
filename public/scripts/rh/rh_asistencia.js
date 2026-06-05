@@ -11,11 +11,22 @@ const API_BASE = '/api/rh/asistencia';
 async function cargarAsistencias() {
     try {
         const fecha = document.getElementById('dateFilter').value;
-        const res = await fetch(`${API_BASE}?inicio=${fecha}&fin=${fecha}`);
-        asistencias = await res.json();
+        const url = `${API_BASE}?inicio=${fecha}&fin=${fecha}`;
+        console.log('[DEBUG] Cargando asistencias:', url);
+        const res = await fetch(url);
+        console.log('[DEBUG] Respuesta HTTP:', res.status, res.statusText);
+        const text = await res.text();
+        console.log('[DEBUG] Respuesta raw (primeros 300 chars):', text.substring(0, 300));
+        try {
+            asistencias = JSON.parse(text);
+        } catch(parseErr) {
+            console.error('[DEBUG] Error parseando JSON:', parseErr);
+            asistencias = [];
+        }
+        console.log('[DEBUG] Registros recibidos:', asistencias.length);
         renderizarAsistencia(asistencias);
     } catch (err) {
-        console.error('Error al cargar asistencias:', err);
+        console.error('[DEBUG] Error al cargar asistencias:', err);
     }
 }
 

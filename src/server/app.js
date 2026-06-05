@@ -26,7 +26,7 @@ const previewRoutes = require('./routes/preview');
 const configuracionSistemaRoutes = require('./routes/configuracionSistema');
 const envRoutes = require('./routes/env');
 const serviciosRoutes = require('./routes/servicios');
-const logisticaRoutes = require('./routes/logistica');
+//const logisticaRoutes = require('./routes/logistica');
 const rhRoutes = require('./routes/rh');
 const notasCreditoRoutes = require('./modules/facturacion/credit-notes/routes/credit-notes.routes');
 const backupScheduler = require('../utils/backupScheduler');
@@ -188,7 +188,7 @@ app.use('/api/facturas', facturasRoutes);
 app.use('/api/entregas', entregasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
+//app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
 app.use('/api/configuracion/smtp', configuracionSmtpRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/encuestas', encuestasRoutes);
@@ -199,7 +199,7 @@ app.use('/api/configuracion/sistema', configuracionSistemaRoutes);
 app.use('/api/configuracion/env', envRoutes);
 app.use('/api/sistema', require('./routes/sistemaRoutes'));
 app.use('/api/servicios', serviciosRoutes);
-app.use('/api/logistica', logisticaRoutes);
+//app.use('/api/logistica', logisticaRoutes);
 app.use('/api/rh', rhRoutes);
 app.use('/api', notasCreditoRoutes);
 
@@ -209,7 +209,7 @@ app.use('/api/inventario', equiposRoutes);
 app.get('/', (req, res) => res.send('API Inventario funcionando'));
 
 // Iniciar servicios de automatización (Respaldos y Limpieza)
-backupScheduler.init();
+//backupScheduler.init();
 
 // Actualizar contratos vencidos a 'Concluido' automáticamente
 contractScheduler.init();

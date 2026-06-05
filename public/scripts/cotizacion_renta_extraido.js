@@ -420,6 +420,7 @@ function crBindModalClose(modal, closeAttr) {
         accessories,
         condiciones,
         notas: observaciones,
+        observaciones: observaciones,
         aplicaIVA,
         discount,
         itemDiscounts: window.state?.itemDiscounts || {},
