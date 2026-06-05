@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const { DateTime } = require('luxon');
+const ZKLib = require('zklib-js-zkteko');
 
 exports.syncBiometric = async (req, res) => {
     let zkInstance = null;
@@ -47,12 +48,14 @@ exports.syncBiometric = async (req, res) => {
             const fechaStr = dt.toISODate(); // 'YYYY-MM-DD'
             const horaStr = dt.toFormat('HH:mm:ss');
 
+            const validBioId = isNaN(bioId) ? null : bioId;
+
             // 6. Verificar si ya existe el registro (usamos bio_id_registro si no hay emp)
             const queryExiste = emp 
                 ? 'SELECT id FROM rh_asistencia WHERE empleado_id = $1 AND fecha = $2 AND hora = $3'
                 : 'SELECT id FROM rh_asistencia WHERE bio_id_registro = $1 AND fecha = $2 AND hora = $3';
             
-            const paramsExiste = emp ? [emp.id, fechaStr, horaStr] : [bioId, fechaStr, horaStr];
+            const paramsExiste = emp ? [emp.id, fechaStr, horaStr] : [validBioId, fechaStr, horaStr];
             const existe = await db.query(queryExiste, paramsExiste);
 
             if (existe.rows.length === 0) {
@@ -74,7 +77,7 @@ exports.syncBiometric = async (req, res) => {
                 await db.query(`
                     INSERT INTO rh_asistencia (empleado_id, fecha, hora, tipo, metodo, status, bio_id_registro)
                     VALUES ($1, $2, $3, $4, $5, $6, $7)
-                `, [emp ? emp.id : null, fechaStr, horaStr, 'Entrada/Salida', 'Biométrico', status, bioId]);
+                `, [emp ? emp.id : null, fechaStr, horaStr, 'Entrada/Salida', 'Biométrico', status, validBioId]);
                 nuevosRegistros++;
             }
         }
