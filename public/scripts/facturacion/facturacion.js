@@ -1048,6 +1048,12 @@ function actualizarTablaFacturas() {
                     <div>
                         <strong style="display: block; color: #333;">${factura.cliente?.nombre || 'Cliente Desconocido'}</strong>
                         <small style="color: #888;">${factura.cliente?.rfc || 'RFC no disponible'}</small>
+                        ${factura.notasInternas ? `
+                            <div class="nota-interna-badge" style="margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #d97706; background: #fef3c7; border: 1px solid #fde68a; padding: 2px 6px; border-radius: 4px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;" title="${factura.notasInternas.replace(/"/g, '&quot;')}">
+                                <i class="fa fa-sticky-note" style="font-size: 0.8rem; color: #d97706;"></i>
+                                <span>${factura.notasInternas}</span>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             </td>

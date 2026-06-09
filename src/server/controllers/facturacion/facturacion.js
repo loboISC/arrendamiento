@@ -221,6 +221,7 @@ exports.timbrarFactura = async (req, res) => {
 
         const conceptosInput = Array.isArray(conceptos) ? conceptos : [];
         const observaciones = factura?.observaciones || '';
+        const notasInternas = String(factura?.notas_internas || '');
         const tipoComprobanteReq = String(factura?.tipo || 'I').toUpperCase();
         const esComplementoPago = tipoComprobanteReq === 'P';
 
@@ -957,7 +958,8 @@ exports.timbrarFactura = async (req, res) => {
                 userId,
                 folioSat,
                 uuidRelacionadoFinal,
-                tipoRelacionFinal
+                tipoRelacionFinal,
+                notasInternas
             ];
 
             let insertFacturaRes;
@@ -974,7 +976,7 @@ exports.timbrarFactura = async (req, res) => {
                             estado = $11, xml_path = $12, pdf_path = $13, sello_cfdi = $14, sello_sat = $15,
                             no_certificado = $16, no_certificado_sat = $17, id_emisor = $18, id_cliente = $19,
                             id_usuario = $20, folio = $21, nota = NULL,
-                            uuid_relacionado = $23, tipo_relacion = $24
+                            uuid_relacionado = $23, tipo_relacion = $24, notas_internas = $25
                          WHERE id_factura = $22
                          RETURNING id_factura, folio, uuid, total, id_cliente, metodo_pago`,
                         [...valoresFactura, idFacturaBorrador]
@@ -987,8 +989,8 @@ exports.timbrarFactura = async (req, res) => {
                         uuid, fecha_emision, fecha_timbrado, total, subtotal, total_descuento, total_iva,
                         forma_pago, metodo_pago, uso_cfdi, estado, xml_path, pdf_path,
                         sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente,
-                        id_usuario, folio, uuid_relacionado, tipo_relacion
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                        id_usuario, folio, uuid_relacionado, tipo_relacion, notas_internas
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
                      RETURNING id_factura, folio, uuid, total, id_cliente, metodo_pago`,
                     valoresFactura
                 );
@@ -1135,6 +1137,9 @@ exports.timbrarFactura = async (req, res) => {
 
     } catch (error) {
         console.error('Error timbrando factura:', error);
+
+        const receptor = req.body?.receptor;
+        const idFacturaBorrador = Number(req.body?.id_factura_borrador || req.body?.factura?.id_factura_borrador || 0) || null;
 
         let errorMessage = error.message;
         let errorDetails = {};
@@ -1398,7 +1403,6 @@ exports.vistaPreviaFactura = async (req, res) => {
             } : null,
             observaciones: observaciones,
             factura: {
-                notas_internas: factura.notas_internas,
                 hayDescuentos: totalDescuento > 0
             }
         };
@@ -1640,6 +1644,7 @@ exports.obtenerFacturas = async (req, res) => {
                 f.no_certificado_sat,
                 f.folio,
                 f.id_usuario,
+                f.notas_internas,
                 CASE WHEN c.rfc = 'XAXX010101000' THEN 'PUBLICO EN GENERAL' ELSE c.nombre END as cliente_nombre,
                 c.rfc as cliente_rfc,
                 c.tipo as cliente_tipo,
@@ -2104,6 +2109,7 @@ exports.obtenerFacturas = async (req, res) => {
                 responsable_nombre: factura.responsable_nombre || 'N/A',
                 uso_cfdi: factura.uso_cfdi || '',
                 es_complemento_pago: esComplemento,
+                notasInternas: factura.notas_internas || '',
                 cliente: {
                     nombre: factura.cliente_nombre || 'Cliente General',
                     rfc: factura.cliente_rfc || 'N/A',

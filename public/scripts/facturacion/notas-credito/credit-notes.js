@@ -1343,7 +1343,7 @@
         if (!chk?.checked) return ui.aviso('Confirmación requerida', 'Marca la casilla para continuar.', 'warning');
         if (!estado.notaGuardada?.id) return;
         if (tipo === 'DEVOLUCION' && !emailDestinatario) {
-          return ui.aviso('Correo requerido', 'Indica el correo para enviar el comprobante de devolución.', 'warning');
+          return ui.aviso('Correo requerido', 'Indica el correo para enviar la nota de crédito.', 'warning');
         }
         try {
           const respuesta = await api(`/api/credit-notes/${estado.notaGuardada.id}/apply-type`, {
@@ -1372,7 +1372,7 @@
               html: `<p>${data?.mensaje || 'La devolución quedó registrada.'}</p>
                      <p><strong>Fecha estimada de pago:</strong> ${fechaEst}</p>
                      <p><strong>Plazo:</strong> ${data?.dias_habiles || '—'} días hábiles</p>
-                     ${data?.email_enviado ? '<p><i>Comprobante enviado por correo.</i></p>' : '<p><i>No se pudo enviar el correo; el comprobante quedó registrado en el sistema.</i></p>'}`,
+                     ${data?.email_enviado ? '<p><i>Documentos enviados por correo.</i></p>' : '<p><i>No se pudo enviar el correo; la devolución quedó registrada en el sistema.</i></p>'}`,
               confirmButtonText: 'Entendido'
             });
           } else {

@@ -861,6 +861,7 @@ model facturas {
   fecha_creacion     DateTime?           @default(now()) @db.Timestamp(6)
   id_usuario         Int?
   total_descuento    Decimal?            @default(0) @db.Decimal(15, 2)
+  notas_internas     String?             @default("")
   conceptos_factura  conceptos_factura[]
   credit_notes       credit_notes[]
   clientes           clientes            @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)

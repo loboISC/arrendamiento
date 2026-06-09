@@ -383,7 +383,8 @@ class ServicioAplicacionCobranzaNC {
     } else {
       try {
         const smtpConfig = await this.obtenerConfigSmtp(usuarioId);
-        const { adjuntos } = this.obtenerAdjuntosNotaCredito(nota);
+        const { pdfPath, xmlPath } = this.obtenerAdjuntosNotaCredito(nota);
+        const xmlAttachment = xmlPath ? [{ filename: path.basename(xmlPath), path: xmlPath, contentType: 'application/xml' }] : [];
         const contenidoHtml = `
           <p>Estimado cliente,</p>
           <p>Se ha registrado su solicitud de devolución derivada de la nota de crédito ${nota.folio || nota.uuid || nota.id}.</p>
@@ -391,7 +392,6 @@ class ServicioAplicacionCobranzaNC {
           <strong>Fecha estimada de pago:</strong> ${formatearFechaMx(fechaEstimada)} (${diasHabiles} días hábiles)</p>
           <p style="white-space: pre-line;">Adjunto encontrarás:
 
-Comprobante de pago de devolución
 Nota de crédito (PDF)
 Nota de crédito (XML)</p>
         `;
@@ -399,10 +399,10 @@ Nota de crédito (XML)</p>
           destinatario,
           `Comprobante de Devolución - ${folioDevolucion}`,
           contenidoHtml,
-          pdfInfo.pdf_path,
-          pdfInfo.pdf_filename,
+          pdfPath,
+          path.basename(pdfPath),
           smtpConfig,
-          adjuntos
+          xmlAttachment
         );
         emailEnviado = true;
       } catch (errEmail) {

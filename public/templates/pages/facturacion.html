@@ -9,12 +9,12 @@
     (function criticalAuthCheck() {
       const token = localStorage.getItem('token');
       const isRedirecting = sessionStorage.getItem('auth_redirecting') === 'true';
-      
+
       if (isRedirecting) {
         console.log('[AUTH-CRITICAL] Ya está en proceso de redirección...');
         return;
       }
-      
+
       if (!token || token === 'null' || token === '') {
         console.log('[AUTH-CRITICAL] ❌ NO HAY TOKEN VÁLIDO. BLOQUEANDO ACCESO...');
         sessionStorage.setItem('auth_redirecting', 'true');
@@ -24,7 +24,7 @@
         setTimeout(() => window.location.replace('login.html'), 500);
         throw new Error('AUTH_BLOCKED: No token found');
       }
-      
+
       console.log('[AUTH-CRITICAL] ✅ Token encontrado. Página permitida.');
     })();
   </script>
@@ -449,8 +449,8 @@
           class="fa fa-chart-line"></i>Resumen </button><button class="tab-btn" data-section="facturas"><i
           class="fa fa-list-ul"></i>Historial de Facturas </button><button class="tab-btn" data-section="timbrado"><i
           class="fa fa-plus-circle"></i>Nuevo Timbrado </button><button class="tab-btn" data-section="notas-credito"><i
-          class="fa fa-minus-circle"></i>Notas de Crédito </button><button class="tab-btn" data-section="historial-nc"><i
-          class="fa fa-clock-rotate-left"></i>Historial NC </button></div>
+          class="fa fa-minus-circle"></i>Notas de Crédito </button><button class="tab-btn"
+        data-section="historial-nc"><i class="fa fa-clock-rotate-left"></i>Historial NC </button></div>
     <!-- SECTION: Dashboard -->
     <section id="dashboard-section" class="content-section active">
       <!-- Metrics Cards -->
@@ -562,7 +562,8 @@
             <span class="metric-trend trend-negative">Antigüedad</span>
           </div>
           <div class="metric-value" id="stat-cartera-riesgo">$0.00</div>
-          <div class="metric-subtitle" style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:4px 10px;">
+          <div class="metric-subtitle"
+            style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:4px 10px;">
             <span id="stat-aging-1-30">1-30: $0.00</span>
             <span id="stat-aging-31-60">31-60: $0.00</span>
             <span id="stat-aging-61-90">61-90: $0.00</span>
@@ -610,8 +611,8 @@
     </section>
     <!-- SECTION: Facturas -->
     <section id="facturas-section" class="content-section">
-      <div class="filters-row"><input type="text" id="search-facturas"
-          placeholder="Buscar folio, cliente o UUID..." />        <select id="filter-estado">
+      <div class="filters-row"><input type="text" id="search-facturas" placeholder="Buscar folio, cliente o UUID..." />
+        <select id="filter-estado">
           <option>Estado: Todos</option>
           <option>BORRADOR</option>
           <option>TIMBRANDO</option>
@@ -626,8 +627,8 @@
           <option>Cliente: Todos</option>
         </select>
         <div style="flex:1"></div><button class="btn-secondary"><i class="fa fa-eraser"></i>Limpiar</button><button
-          class="btn-primary"><i class="fa fa-filter"></i>Aplicar</button><button class="btn-secondary" id="btn-descargar-reporte"><i
-            class="fa fa-download"></i></button>
+          class="btn-primary"><i class="fa fa-filter"></i>Aplicar</button><button class="btn-secondary"
+          id="btn-descargar-reporte"><i class="fa fa-download"></i></button>
       </div>
       <table class="facturas-table">
         <thead>
@@ -657,12 +658,14 @@
     </section>
     <!-- SECTION: Timbrado -->
     <section id="timbrado-section" class="content-section">
-      <div id="timb-borradores-panel" style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px 16px; margin-bottom:20px;">
+      <div id="timb-borradores-panel"
+        style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px 16px; margin-bottom:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <h4 style="margin:0; font-size:0.95rem; color:#92400e; font-weight:700;">
             <i class="fa fa-file-pen" style="margin-right:8px;"></i>Borradores pendientes de timbrar
           </h4>
-          <button type="button" class="btn-secondary" onclick="cargarBorradoresTimbrado()" style="font-size:0.8rem; padding:4px 10px;">
+          <button type="button" class="btn-secondary" onclick="cargarBorradoresTimbrado()"
+            style="font-size:0.8rem; padding:4px 10px;">
             <i class="fa fa-rotate"></i> Actualizar
           </button>
         </div>
@@ -707,25 +710,32 @@
               style="background:#2979ff; color:#fff; border:none; border-radius:6px; padding:6px 12px; font-size:0.85rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
               <i class="fa fa-exchange"></i>Cambiar Cliente
             </button>
-            <button class="btn-header-add" onclick="abrirModalAgregarConcepto()" style="padding:6px 12px; font-size:0.85rem;"><i class="fa fa-plus-circle"></i>AGREGAR</button>
+            <button class="btn-header-add" onclick="abrirModalAgregarConcepto()"
+              style="padding:6px 12px; font-size:0.85rem;"><i class="fa fa-plus-circle"></i>AGREGAR</button>
           </div>
         </div>
         <!-- Cliente Frecuente Selector Row -->
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap; border-bottom:1px dashed #e2e8f0; padding-bottom:12px;">
+        <div
+          style="display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap; border-bottom:1px dashed #e2e8f0; padding-bottom:12px;">
           <span style="font-size:0.8rem; font-weight:600; color:#475569;">Cliente Frecuente:</span>
-          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('xaxx', this)" style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
+          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('xaxx', this)"
+            style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
             Público en General (XAXX)
           </button>
-          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('xexx', this)" style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
+          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('xexx', this)"
+            style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
             Extranjero (XEXX)
           </button>
-          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('otro', this)" style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
+          <button type="button" class="timb-pill-cliente-frecuente" onclick="seleccionarClienteFrecuente('otro', this)"
+            style="border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:pointer; border:1px solid #cbd5e1; background:white; color:#475569; transition:all 0.2s; outline:none;">
             Otro (manual)
           </button>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div style="flex:1;">
-            <div><strong id="timb-cliente-nombre" style="display:block; color:#1e293b; font-size:1rem; margin-bottom:4px;">Selecciona un cliente...</strong></div>
+            <div><strong id="timb-cliente-nombre"
+                style="display:block; color:#1e293b; font-size:1rem; margin-bottom:4px;">Selecciona un
+                cliente...</strong></div>
             <div id="timb-cliente-direccion" style="color:#6b7280; font-size:0.9rem; margin-bottom:8px;">-</div>
             <div id="timb-cliente-extras" style="color:#64748b; font-size:0.85rem;">
               <div>RFC: <span id="timb-cliente-rfc-display">-</span></div>
@@ -774,7 +784,8 @@
         <!-- Sección de Totales -->
         <div class="timbrado-footer-totals" style="width: 320px; flex-shrink: 0; margin-top: 0;">
           <div class="totals-wrapper">
-            <div class="total-row"><span class="label">subtotal:</span><span id="subtotal-amount" class="val">$0.00</span>
+            <div class="total-row"><span class="label">subtotal:</span><span id="subtotal-amount"
+                class="val">$0.00</span>
             </div>
             <div class="total-row" id="discount-row">
               <span class="label">descuento:</span>
@@ -887,8 +898,9 @@
         <div class="grid-col-double" style="grid-column: span 2;">
           <div class="field-group"><label>Observaciones de la Factura:</label><input type="text" id="timb-observacion"
               class="timb-input" placeholder="Notas adicionales que aparecerán en el PDF..." /></div>
-          <div class="field-group"><label>Notas Internas:</label><textarea id="timb-notas-internas"
-              class="timb-input" placeholder="Notas que aparecerán arriba en el PDF..." rows="3"></textarea></div>
+          <div class="field-group"><label>Notas Internas:</label><textarea id="timb-notas-internas" class="timb-input"
+              placeholder="Estas notas se almacenaran ligadas a esta factura, para consulta posterior."
+              rows="3"></textarea></div>
         </div>
         <div class="grid-col-full">
           <div class="fr-card">
@@ -915,7 +927,8 @@
                 <div class="fr-field-group">
                   <label for="fr-uuid-input">UUID relacionado</label>
                   <div class="fr-uuid-input-row">
-                    <input type="text" id="fr-uuid-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
+                    <input type="text" id="fr-uuid-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      autocomplete="off">
                     <button type="button" id="fr-add-uuid" class="fr-add-btn">Agregar</button>
                   </div>
                   <div class="fr-uuid-error" id="fr-uuid-error"></div>
@@ -923,9 +936,12 @@
                 </div>
               </div>
               <!-- Info banner: visible only for tipo 07 -->
-              <div id="fr-anticipo-banner" style="display:none; background:#e3f2fd; border-left:4px solid #2979ff; border-radius:6px; padding:12px; margin-top:12px; font-size:0.85rem; color:#1565c0; line-height:1.5;">
+              <div id="fr-anticipo-banner"
+                style="display:none; background:#e3f2fd; border-left:4px solid #2979ff; border-radius:6px; padding:12px; margin-top:12px; font-size:0.85rem; color:#1565c0; line-height:1.5;">
                 <strong>💡 Relación 07 — CFDI por aplicación de anticipo</strong><br>
-                Adjunta el UUID del CFDI de anticipo. El monto del anticipo se aplicará automáticamente como descuento en el cálculo de esta factura. Asegúrate de que los conceptos reflejen el importe total antes del anticipo.
+                Adjunta el UUID del CFDI de anticipo. El monto del anticipo se aplicará automáticamente como descuento
+                en el cálculo de esta factura. Asegúrate de que los conceptos reflejen el importe total antes del
+                anticipo.
               </div>
               <!-- Pill list: visible for tipos 01–06 -->
               <div class="fr-uuid-list" id="fr-uuid-list"></div>
@@ -934,14 +950,19 @@
                 <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
                   <thead>
                     <tr style="border-bottom:2px solid #e3e8ef;">
-                      <th style="text-align:left; padding:8px 10px; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.5px;">Tipo de Relación*</th>
-                      <th style="text-align:left; padding:8px 10px; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.5px;">Folio Fiscal</th>
+                      <th
+                        style="text-align:left; padding:8px 10px; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.5px;">
+                        Tipo de Relación*</th>
+                      <th
+                        style="text-align:left; padding:8px 10px; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; letter-spacing:0.5px;">
+                        Folio Fiscal</th>
                       <th style="width:80px; padding:8px 10px;"></th>
                     </tr>
                   </thead>
                   <tbody id="fr-anticipo-tbody"></tbody>
                 </table>
-                <div id="fr-anticipo-status" style="display:none; margin-top:8px; padding:10px 12px; border-radius:6px; font-size:0.85rem;"></div>
+                <div id="fr-anticipo-status"
+                  style="display:none; margin-top:8px; padding:10px 12px; border-radius:6px; font-size:0.85rem;"></div>
               </div>
             </div>
           </div>
@@ -961,10 +982,12 @@
               </select></div>
             <div style="flex:1;"></div>
             <div class="header-action-group" style="display:flex; gap:10px; align-items:center;">
-              <button id="btn-vista-previa-pdf" class="btn-header-draft" onclick="procesarVistaPreviaPDF()" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;">
+              <button id="btn-vista-previa-pdf" class="btn-header-draft" onclick="procesarVistaPreviaPDF()"
+                style="display:inline-flex; align-items:center; gap:6px; font-weight:700; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;">
                 VISTA PREVIA PDF <i class="fa fa-file-pdf"></i>
               </button>
-              <button id="btn-guardar-borrador" class="btn-header-draft" onclick="procesarGuardarBorrador()" style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
+              <button id="btn-guardar-borrador" class="btn-header-draft" onclick="procesarGuardarBorrador()"
+                style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
                 GUARDAR BORRADOR <i class="fa fa-save"></i>
               </button>
               <button id="btn-timbrar" class="btn-header-send" onclick="procesarTimbrado()">TIMBRAR FACTURA <i
@@ -985,10 +1008,11 @@
           </div>
           <div style="display: flex; gap: 8px;">
             <span class="nc-estado-documento" id="nc-estado-documento">Borrador</span>
-            <button class="nc-btn nc-btn-primario" id="nc-btn-configurar"><i class="fa fa-cog"></i> Configurar CFDI</button>
+            <button class="nc-btn nc-btn-primario" id="nc-btn-configurar"><i class="fa fa-cog"></i> Configurar
+              CFDI</button>
           </div>
         </div>
-        
+
         <div class="nc-layout">
           <div class="nc-contenido">
             <div id="nc-buscador-facturas"></div>
@@ -1151,7 +1175,7 @@
   <script src="scripts/facturacion/facturas.js"></script>
   <script src="scripts/facturacion/facturacion.js"></script>
   <script src="scripts/facturacion/reporte-mensual.js"></script>
-  
+
   <!-- Componentes del Módulo de Notas de Crédito -->
   <script src="scripts/facturacion/notas-credito/components/tipo-comprobante-selector.js"></script>
   <script src="scripts/facturacion/notas-credito/components/sat-alerts.js"></script>
@@ -1694,20 +1718,25 @@
       <div style="margin-bottom:20px;border-bottom:1px solid #e3e8ef;padding-bottom:14px;">
         <h3 style="margin:0;font-size:1.25rem;font-weight:700;color:#232323;"><i class="fa fa-ban"
             style="color:#d32f2f;margin-right:8px;"></i>Cancelar Factura</h3>
-        <p style="margin:8px 0 0;color:#6b7280;font-size:0.9rem;">Cancelación fiscal ante el SAT. Esta acción puede ser irreversible.</p>
+        <p style="margin:8px 0 0;color:#6b7280;font-size:0.9rem;">Cancelación fiscal ante el SAT. Esta acción puede ser
+          irreversible.</p>
       </div>
       <div id="cancelar-factura-api-error" class="modal-alert-error" role="alert"></div>
       <div style="margin-bottom:14px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e3e8ef;">
-        <div style="margin-bottom:8px;"><span style="font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;">Folio</span>
+        <div style="margin-bottom:8px;"><span
+            style="font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;">Folio</span>
           <div id="cancelar-factura-folio" style="font-weight:700;color:#232323;margin-top:2px;">—</div>
         </div>
         <div><span style="font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;">UUID</span>
-          <div id="cancelar-factura-uuid-display" style="font-family:monospace;font-size:0.82rem;color:#374151;word-break:break-all;margin-top:2px;">—</div>
+          <div id="cancelar-factura-uuid-display"
+            style="font-family:monospace;font-size:0.82rem;color:#374151;word-break:break-all;margin-top:2px;">—</div>
         </div>
       </div>
       <form id="form-cancelar-factura" onsubmit="enviarCancelacionFactura(event)">
         <div style="margin-bottom:16px;">
-          <label for="cancelar-factura-motivo" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Motivo de cancelación <span style="color:#d32f2f;">*</span></label>
+          <label for="cancelar-factura-motivo"
+            style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Motivo de cancelación <span
+              style="color:#d32f2f;">*</span></label>
           <select id="cancelar-factura-motivo" required
             style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;box-sizing:border-box;">
             <option value="" selected disabled>Selecciona un motivo</option>
@@ -1718,20 +1747,25 @@
           </select>
         </div>
         <div id="cancelar-factura-uuid-sust-wrap" style="display:none;margin-bottom:16px;">
-          <label for="cancelar-factura-uuid-sustitucion" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">UUID Factura Sustitución <span style="color:#d32f2f;">*</span></label>
-          <input type="text" id="cancelar-factura-uuid-sustitucion" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          <label for="cancelar-factura-uuid-sustitucion"
+            style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">UUID Factura Sustitución <span
+              style="color:#d32f2f;">*</span></label>
+          <input type="text" id="cancelar-factura-uuid-sustitucion" autocomplete="off"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;box-sizing:border-box;font-family:monospace;" />
           <div id="cancelar-factura-uuid-sust-error" class="field-error">UUID no válido</div>
         </div>
         <div id="cancelar-factura-acuse-wrap" style="display:none;margin-bottom:16px;">
           <a id="cancelar-factura-acuse-link" href="#" target="_blank" rel="noopener noreferrer"
-            style="color:#2979ff;font-weight:600;font-size:0.9rem;"><i class="fa fa-download"></i> Descargar acuse de cancelación</a>
+            style="color:#2979ff;font-weight:600;font-size:0.9rem;"><i class="fa fa-download"></i> Descargar acuse de
+            cancelación</a>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:4px;">
           <button type="button" onclick="cerrarModalCancelarFactura()"
             style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;">Cerrar</button>
           <button type="submit" id="btn-confirmar-cancelar-factura"
-            style="background:#d32f2f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i class="fa fa-ban"></i> Cancelar factura</button>
+            style="background:#d32f2f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i
+              class="fa fa-ban"></i> Cancelar factura</button>
         </div>
       </form>
     </div>
@@ -1747,17 +1781,21 @@
       <div style="margin-bottom:20px;border-bottom:1px solid #e3e8ef;padding-bottom:14px;">
         <h3 style="margin:0;font-size:1.25rem;font-weight:700;color:#232323;"><i class="fa fa-ban"
             style="color:#d32f2f;margin-right:8px;"></i>Cancelar Nota de Crédito</h3>
-        <p style="margin:8px 0 0;color:#6b7280;font-size:0.9rem;">Cancelación fiscal ante el SAT. Esta acción puede ser irreversible.</p>
+        <p style="margin:8px 0 0;color:#6b7280;font-size:0.9rem;">Cancelación fiscal ante el SAT. Esta acción puede ser
+          irreversible.</p>
       </div>
       <div id="cancelar-nc-api-error" class="modal-alert-error" role="alert"></div>
       <div style="margin-bottom:14px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e3e8ef;">
-        <div style="margin-bottom:8px;"><span style="font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;">UUID</span>
-          <div id="cancelar-nc-uuid-display" style="font-family:monospace;font-size:0.82rem;color:#374151;word-break:break-all;margin-top:2px;">—</div>
+        <div style="margin-bottom:8px;"><span
+            style="font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;">UUID</span>
+          <div id="cancelar-nc-uuid-display"
+            style="font-family:monospace;font-size:0.82rem;color:#374151;word-break:break-all;margin-top:2px;">—</div>
         </div>
       </div>
       <form id="form-cancelar-nc" onsubmit="enviarCancelacionNC(event)">
         <div style="margin-bottom:16px;">
-          <label for="cancelar-nc-motivo" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Motivo de cancelación <span style="color:#d32f2f;">*</span></label>
+          <label for="cancelar-nc-motivo" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Motivo
+            de cancelación <span style="color:#d32f2f;">*</span></label>
           <select id="cancelar-nc-motivo" required
             style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;box-sizing:border-box;">
             <option value="" selected disabled>Selecciona un motivo</option>
@@ -1768,8 +1806,11 @@
           </select>
         </div>
         <div id="cancelar-nc-uuid-sust-wrap" style="display:none;margin-bottom:16px;">
-          <label for="cancelar-nc-uuid-sustitucion" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">UUID NC Sustitución <span style="color:#d32f2f;">*</span></label>
-          <input type="text" id="cancelar-nc-uuid-sustitucion" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          <label for="cancelar-nc-uuid-sustitucion"
+            style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">UUID NC Sustitución <span
+              style="color:#d32f2f;">*</span></label>
+          <input type="text" id="cancelar-nc-uuid-sustitucion" autocomplete="off"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;box-sizing:border-box;font-family:monospace;" />
           <div id="cancelar-nc-uuid-sust-error" class="field-error">UUID no válido</div>
         </div>
@@ -1777,43 +1818,56 @@
           <button type="button" onclick="cerrarModalCancelarNC()"
             style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;">Cerrar</button>
           <button type="submit" id="btn-confirmar-cancelar-nc"
-            style="background:#d32f2f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i class="fa fa-ban"></i> Cancelar NC</button>
+            style="background:#d32f2f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i
+              class="fa fa-ban"></i> Cancelar NC</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- Modal Reporte Mensual -->
-  <div id="reporte-mensual-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:400; align-items:center; justify-content:center; opacity:0; transition:opacity 0.3s ease;">
-    <div class="modal-premium-card" style="background:#ffffff; border-radius:24px; width:880px; max-width:95vw; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.15); border:1px solid #e2e8f0; position:relative; overflow:hidden; transform:translateY(20px); transition:transform 0.3s ease; display:flex; flex-direction:column;">
-      
+  <div id="reporte-mensual-modal"
+    style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:400; align-items:center; justify-content:center; opacity:0; transition:opacity 0.3s ease;">
+    <div class="modal-premium-card"
+      style="background:#ffffff; border-radius:24px; width:880px; max-width:95vw; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.15); border:1px solid #e2e8f0; position:relative; overflow:hidden; transform:translateY(20px); transition:transform 0.3s ease; display:flex; flex-direction:column;">
+
       <!-- Top Accent Bar -->
       <div style="height:6px; background:linear-gradient(90deg, #2979ff, #00d2ff); width:100%;"></div>
-      
+
       <!-- Header -->
-      <div style="padding:24px 32px 16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+      <div
+        style="padding:24px 32px 16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
         <div style="display:flex; align-items:center; gap:16px;">
-          <div style="background:linear-gradient(135deg, #e3f2fd, #bbdefb); width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:#2979ff;">
+          <div
+            style="background:linear-gradient(135deg, #e3f2fd, #bbdefb); width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:#2979ff;">
             <i class="fa fa-file-excel" style="font-size:1.5rem;"></i>
           </div>
           <div>
-            <h3 style="margin:0; font-size:1.3rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
-              Reporte Mensual <span id="reporte-rfc-badge" style="background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:30px; font-size:0.8rem; font-weight:700; font-family:monospace;">---</span>
+            <h3
+              style="margin:0; font-size:1.3rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+              Reporte Mensual <span id="reporte-rfc-badge"
+                style="background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:30px; font-size:0.8rem; font-weight:700; font-family:monospace;">---</span>
             </h3>
-            <p style="margin:4px 0 0; color:#64748b; font-size:0.85rem; font-weight:500;">Configura los filtros para generar tu reporte en formato Excel</p>
+            <p style="margin:4px 0 0; color:#64748b; font-size:0.85rem; font-weight:500;">Configura los filtros para
+              generar tu reporte en formato Excel</p>
           </div>
         </div>
-        <button type="button" onclick="cerrarReporteMensualModal()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1.5rem; transition:color 0.2s; padding:4px;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">&times;</button>
+        <button type="button" onclick="cerrarReporteMensualModal()"
+          style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1.5rem; transition:color 0.2s; padding:4px;"
+          onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">&times;</button>
       </div>
 
       <!-- Content / Form -->
       <form id="form-reporte-mensual" onsubmit="descargarReporteMensual(event)" style="padding:32px; margin:0;">
         <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:20px; margin-bottom:28px;">
-          
+
           <!-- 1. Tipo Comprobante (Emitidas/Recibidas) -->
           <div>
-            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Comprobantes</label>
-            <select id="rep-tipo-comprobante" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;" onchange="handleTipoComprobanteChange()">
+            <label
+              style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Comprobantes</label>
+            <select id="rep-tipo-comprobante"
+              style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;"
+              onchange="handleTipoComprobanteChange()">
               <option value="emitidas" selected>Emitidas (Ventas)</option>
               <option value="recibidas">Recibidas (Compras)</option>
             </select>
@@ -1821,40 +1875,63 @@
 
           <!-- 2. Estatus (Vigente / Cancelada / Aplicada) -->
           <div>
-            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Estatus CFDI</label>
+            <label
+              style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Estatus
+              CFDI</label>
             <div style="position:relative; width:100%;">
-              <button type="button" id="btn-rep-estatus-dropdown" onclick="toggleRepEstatusDropdown()" style="width:100%; text-align:left; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+              <button type="button" id="btn-rep-estatus-dropdown" onclick="toggleRepEstatusDropdown()"
+                style="width:100%; text-align:left; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
                 <span id="rep-estatus-selected-text">Todos</span>
                 <i class="fa fa-chevron-down" style="font-size:0.75rem; color:#64748b;"></i>
               </button>
-              <div id="rep-estatus-options" style="display:none; position:absolute; top:100%; left:0; width:100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); z-index:50; padding:8px; margin-top:4px; box-sizing:border-box;">
-                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="VIGENTE" checked onchange="updateRepEstatusText()"> Vigente</label>
-                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="CANCELADA" checked onchange="updateRepEstatusText()"> Cancelada</label>
-                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="APLICADA" checked onchange="updateRepEstatusText()"> Aplicada</label>
+              <div id="rep-estatus-options"
+                style="display:none; position:absolute; top:100%; left:0; width:100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); z-index:50; padding:8px; margin-top:4px; box-sizing:border-box;">
+                <label
+                  style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input
+                    type="checkbox" value="VIGENTE" checked onchange="updateRepEstatusText()"> Vigente</label>
+                <label
+                  style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input
+                    type="checkbox" value="CANCELADA" checked onchange="updateRepEstatusText()"> Cancelada</label>
+                <label
+                  style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input
+                    type="checkbox" value="APLICADA" checked onchange="updateRepEstatusText()"> Aplicada</label>
               </div>
             </div>
           </div>
 
           <!-- 3. Tipo Factura / CFDI -->
           <div>
-            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Tipo de CFDI</label>
+            <label
+              style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Tipo
+              de CFDI</label>
             <div style="position:relative; width:100%;">
-              <button type="button" id="btn-rep-tipo-dropdown" onclick="toggleRepTipoDropdown()" style="width:100%; text-align:left; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+              <button type="button" id="btn-rep-tipo-dropdown" onclick="toggleRepTipoDropdown()"
+                style="width:100%; text-align:left; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
                 <span id="rep-tipo-selected-text">Todos</span>
                 <i class="fa fa-chevron-down" style="font-size:0.75rem; color:#64748b;"></i>
               </button>
-              <div id="rep-tipo-options" style="display:none; position:absolute; top:100%; left:0; width:100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); z-index:50; padding:8px; margin-top:4px; box-sizing:border-box;">
-                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="I" checked onchange="updateRepTipoText()"> Ingreso (Factura)</label>
-                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="E" checked onchange="updateRepTipoText()"> Egreso (N. Crédito)</label>
-                <label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input type="checkbox" value="P" checked onchange="updateRepTipoText()"> Pago (Complemento)</label>
+              <div id="rep-tipo-options"
+                style="display:none; position:absolute; top:100%; left:0; width:100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); z-index:50; padding:8px; margin-top:4px; box-sizing:border-box;">
+                <label
+                  style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input
+                    type="checkbox" value="I" checked onchange="updateRepTipoText()"> Ingreso (Factura)</label>
+                <label
+                  style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input
+                    type="checkbox" value="E" checked onchange="updateRepTipoText()"> Egreso (N. Crédito)</label>
+                <label
+                  style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; font-weight:600; color:#334155;"><input
+                    type="checkbox" value="P" checked onchange="updateRepTipoText()"> Pago (Complemento)</label>
               </div>
             </div>
           </div>
 
           <!-- 4. Tipo Relación -->
           <div>
-            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Tipo Relación</label>
-            <select id="rep-tipo-relacion" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;">
+            <label
+              style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Tipo
+              Relación</label>
+            <select id="rep-tipo-relacion"
+              style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;">
               <option value="todos" selected>Todos los CFDI</option>
               <option value="solo_facturas">Solo Facturas (Sin PPD)</option>
               <option value="complementos_facturas">Solo Complementos de Pago</option>
@@ -1863,16 +1940,22 @@
 
           <!-- 5. Año -->
           <div>
-            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Año</label>
-            <select id="rep-anio" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;" onchange="handlePeriodoChange()">
+            <label
+              style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Año</label>
+            <select id="rep-anio"
+              style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;"
+              onchange="handlePeriodoChange()">
               <!-- Will be populated dynamically with JS -->
             </select>
           </div>
 
           <!-- 6. Mes -->
           <div>
-            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Mes</label>
-            <select id="rep-mes" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;" onchange="handlePeriodoChange()">
+            <label
+              style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Mes</label>
+            <select id="rep-mes"
+              style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; transition:all 0.2s; cursor:pointer;"
+              onchange="handlePeriodoChange()">
               <option value="todos">Todos los meses (Rango)</option>
               <option value="1">Enero</option>
               <option value="2">Febrero</option>
@@ -1891,39 +1974,54 @@
 
           <!-- 7. Fecha Inicio (Rango) -->
           <div id="rep-fecha-inicio-container">
-            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Fecha Inicio</label>
-            <input type="date" id="rep-fecha-inicio" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; box-sizing:border-box;" />
+            <label
+              style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Fecha
+              Inicio</label>
+            <input type="date" id="rep-fecha-inicio"
+              style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; box-sizing:border-box;" />
           </div>
 
           <!-- 8. Fecha Fin (Rango) -->
           <div id="rep-fecha-fin-container">
-            <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Fecha Fin</label>
-            <input type="date" id="rep-fecha-fin" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; box-sizing:border-box;" />
+            <label
+              style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Fecha
+              Fin</label>
+            <input type="date" id="rep-fecha-fin"
+              style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.9rem; color:#1e293b; font-weight:600; outline:none; box-sizing:border-box;" />
           </div>
 
         </div>
 
         <!-- Checkbox: Incluir Concepto -->
-        <div style="background:#f8fafc; padding:16px 24px; border-radius:16px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+        <div
+          style="background:#f8fafc; padding:16px 24px; border-radius:16px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
           <div style="display:flex; align-items:center; gap:12px;">
-            <div style="background:#e8f5e9; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#2e7d32;">
+            <div
+              style="background:#e8f5e9; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#2e7d32;">
               <i class="fa fa-info-circle" style="font-size:1.1rem;"></i>
             </div>
             <div>
               <span style="display:block; font-size:0.9rem; font-weight:700; color:#334155;">Detalle de Conceptos</span>
-              <span style="font-size:0.8rem; color:#64748b;">Agrega la descripción del primer concepto facturado al reporte.</span>
+              <span style="font-size:0.8rem; color:#64748b;">Agrega la descripción del primer concepto facturado al
+                reporte.</span>
             </div>
           </div>
           <label class="switch" style="position:relative; display:inline-block; width:50px; height:26px; margin:0;">
             <input type="checkbox" id="rep-incluir-concepto" checked style="opacity:0; width:0; height:0;">
-            <span class="slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#cbd5e1; transition:0.3s; border-radius:34px;"></span>
+            <span class="slider"
+              style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#cbd5e1; transition:0.3s; border-radius:34px;"></span>
           </label>
         </div>
 
         <!-- Footer Actions -->
         <div style="display:flex; justify-content:flex-end; gap:16px; border-top:1px solid #f1f5f9; padding-top:20px;">
-          <button type="button" onclick="cerrarReporteMensualModal()" style="background:#f1f5f9; color:#475569; border:none; border-radius:12px; padding:12px 24px; font-size:0.95rem; font-weight:700; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">Cancelar</button>
-          <button type="submit" id="btn-rep-submit" style="background:linear-gradient(135deg, #2979ff, #1565c0); color:#ffffff; border:none; border-radius:12px; padding:12px 32px; font-size:0.95rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:10px; transition:all 0.2s; box-shadow:0 4px 6px -1px rgba(41, 121, 255, 0.2);" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 10px 15px -3px rgba(41, 121, 255, 0.3)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 6px -1px rgba(41, 121, 255, 0.2)';">
+          <button type="button" onclick="cerrarReporteMensualModal()"
+            style="background:#f1f5f9; color:#475569; border:none; border-radius:12px; padding:12px 24px; font-size:0.95rem; font-weight:700; cursor:pointer; transition:all 0.2s;"
+            onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">Cancelar</button>
+          <button type="submit" id="btn-rep-submit"
+            style="background:linear-gradient(135deg, #2979ff, #1565c0); color:#ffffff; border:none; border-radius:12px; padding:12px 32px; font-size:0.95rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:10px; transition:all 0.2s; box-shadow:0 4px 6px -1px rgba(41, 121, 255, 0.2);"
+            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 10px 15px -3px rgba(41, 121, 255, 0.3)';"
+            onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 6px -1px rgba(41, 121, 255, 0.2)';">
             <i class="fa fa-download"></i> Generar Excel
           </button>
         </div>
@@ -1932,9 +2030,10 @@
   </div>
 
   <style>
-    #reporte-mensual-modal .switch input:checked + .slider {
+    #reporte-mensual-modal .switch input:checked+.slider {
       background-color: #2979ff;
     }
+
     #reporte-mensual-modal .slider:before {
       position: absolute;
       content: "";
@@ -1946,10 +2045,13 @@
       transition: 0.3s;
       border-radius: 50%;
     }
-    #reporte-mensual-modal .switch input:checked + .slider:before {
+
+    #reporte-mensual-modal .switch input:checked+.slider:before {
       transform: translateX(24px);
     }
-    #reporte-mensual-modal select:focus, #reporte-mensual-modal input:focus {
+
+    #reporte-mensual-modal select:focus,
+    #reporte-mensual-modal input:focus {
       border-color: #2979ff !important;
       background-color: #ffffff !important;
       box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.15);

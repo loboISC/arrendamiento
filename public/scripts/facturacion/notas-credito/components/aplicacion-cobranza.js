@@ -339,7 +339,7 @@ window.ComponenteAplicacionCobranzaNC = {
                       </label>
                     </div>
                     <p class="nc-opcion-descripcion">
-                      Se generará un comprobante de devolución de efectivo y se enviará por correo al destinatario indicado.
+                      Se registrará la solicitud de devolución y se enviará la nota de crédito por correo al destinatario indicado.
                     </p>
                     <div class="nc-opcion-detalles nc-opcion-detalles-warning" id="nc-devolucion-plazo" style="display:none;">
                       <small>
