@@ -633,7 +633,9 @@ class RepositorioNotasCredito {
             pdf_path = COALESCE($5::text, pdf_path),
             xml_path = COALESCE($6::text, xml_path),
             stamped_by = COALESCE($7::integer, stamped_by),
-            updated_by = COALESCE($8::integer, updated_by)
+            updated_by = COALESCE($8::integer, updated_by),
+            cancellation_reason = COALESCE($10::varchar, cancellation_reason),
+            cancellation_uuid_sust = COALESCE($11::uuid, cancellation_uuid_sust)
         WHERE id = $9::uuid
         RETURNING id
       `,
@@ -646,7 +648,9 @@ class RepositorioNotasCredito {
         extra.xml_path ?? null,
         extra.stamped_by ?? null,
         extra.updated_by ?? extra.stamped_by ?? null,
-        id
+        id,
+        extra.cancellation_reason ?? null,
+        extra.cancellation_uuid_sust ?? null
       ]
     );
     return this.obtenerPorId(resultado.rows[0]?.id || id);

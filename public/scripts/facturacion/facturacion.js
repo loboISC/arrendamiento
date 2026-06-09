@@ -986,6 +986,17 @@ function renderizarGraficosDashboard() {
     }
 }
 
+// Función para formatear fecha a DD/MM/YYYY
+function formatearFechaADDMMYYYY(fechaStr) {
+    if (!fechaStr) return '-';
+    const fecha = new Date(fechaStr);
+    if (isNaN(fecha.getTime())) return fechaStr;
+    const day = String(fecha.getDate()).padStart(2, '0');
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const year = fecha.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
 // Función para actualizar tabla de facturas
 function actualizarTablaFacturas() {
     const tbody = document.querySelector('.facturas-table tbody');
@@ -1006,10 +1017,6 @@ function actualizarTablaFacturas() {
         const estadoTexto = badgeEstado.estadoTexto;
 
         row.innerHTML = `
-            <td class="text-center"><input type="checkbox"></td>
-            <td>
-                <span class="badge ${estadoClass}">${estadoTexto}</span>
-            </td>
             <td>
                 <div class="folio-number">${factura.folio || 'S/F'}</div>
                 ${esComplementoPago ? `
@@ -1045,13 +1052,16 @@ function actualizarTablaFacturas() {
                 </div>
             </td>
             <td>
-                <span style="color: #555;">${factura.fechas?.emision || '-'}</span>
+                <span style="color: #555;">${formatearFechaADDMMYYYY(factura.fechas?.emision) || '-'}</span>
             </td>
             <td>
                 <span class="badge badge-pue">${factura.metodo_pago || 'PUE'}</span>
             </td>
             <td>
                 <span style="color: #555; font-size: 0.9em; font-weight: 500;">${factura.responsable_nombre || 'N/A'}</span>
+            </td>
+            <td>
+                <span class="badge ${estadoClass}">${estadoTexto}</span>
             </td>
             <td>
                 <strong style="color: #333;">$${Number(esComplementoPago ? factura.complemento_monto || 0 : factura.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong><br>

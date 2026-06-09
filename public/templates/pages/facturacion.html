@@ -632,14 +632,13 @@
       <table class="facturas-table">
         <thead>
           <tr>
-            <th><input type="checkbox" /></th>
-            <th>ESTADO</th>
             <th>FOLIO</th>
             <th>UUID / TIMBRE</th>
             <th>CLIENTE / RFC</th>
             <th>EMISIÓN</th>
             <th>MÉTODO</th>
             <th>RESPONSABLE</th>
+            <th>ESTADO</th>
             <th>MONTO TOTAL</th>
             <th class="text-right"></th>
           </tr>
@@ -1733,6 +1732,52 @@
             style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;">Cerrar</button>
           <button type="submit" id="btn-confirmar-cancelar-factura"
             style="background:#d32f2f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i class="fa fa-ban"></i> Cancelar factura</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal cancelar nota de crédito (SAT) -->
+  <div id="cancelar-nc-modal"
+    style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:350;align-items:center;justify-content:center;">
+    <div
+      style="background:#fff;padding:28px 24px 22px;border-radius:16px;width:520px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      <span onclick="cerrarModalCancelarNC()"
+        style="position:absolute;top:12px;right:16px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+      <div style="margin-bottom:20px;border-bottom:1px solid #e3e8ef;padding-bottom:14px;">
+        <h3 style="margin:0;font-size:1.25rem;font-weight:700;color:#232323;"><i class="fa fa-ban"
+            style="color:#d32f2f;margin-right:8px;"></i>Cancelar Nota de Crédito</h3>
+        <p style="margin:8px 0 0;color:#6b7280;font-size:0.9rem;">Cancelación fiscal ante el SAT. Esta acción puede ser irreversible.</p>
+      </div>
+      <div id="cancelar-nc-api-error" class="modal-alert-error" role="alert"></div>
+      <div style="margin-bottom:14px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e3e8ef;">
+        <div style="margin-bottom:8px;"><span style="font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;">UUID</span>
+          <div id="cancelar-nc-uuid-display" style="font-family:monospace;font-size:0.82rem;color:#374151;word-break:break-all;margin-top:2px;">—</div>
+        </div>
+      </div>
+      <form id="form-cancelar-nc" onsubmit="enviarCancelacionNC(event)">
+        <div style="margin-bottom:16px;">
+          <label for="cancelar-nc-motivo" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Motivo de cancelación <span style="color:#d32f2f;">*</span></label>
+          <select id="cancelar-nc-motivo" required
+            style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;box-sizing:border-box;">
+            <option value="" selected disabled>Selecciona un motivo</option>
+            <option value="01">01 - Comprobante emitido con errores con relación</option>
+            <option value="02">02 - Comprobante emitido con errores sin relación</option>
+            <option value="03">03 - No se llevó a cabo la operación</option>
+            <option value="04">04 - Operación nominativa relacionada en una factura global</option>
+          </select>
+        </div>
+        <div id="cancelar-nc-uuid-sust-wrap" style="display:none;margin-bottom:16px;">
+          <label for="cancelar-nc-uuid-sustitucion" style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">UUID NC Sustitución <span style="color:#d32f2f;">*</span></label>
+          <input type="text" id="cancelar-nc-uuid-sustitucion" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;box-sizing:border-box;font-family:monospace;" />
+          <div id="cancelar-nc-uuid-sust-error" class="field-error">UUID no válido</div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:4px;">
+          <button type="button" onclick="cerrarModalCancelarNC()"
+            style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;">Cerrar</button>
+          <button type="submit" id="btn-confirmar-cancelar-nc"
+            style="background:#d32f2f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;font-weight:600;cursor:pointer;"><i class="fa fa-ban"></i> Cancelar NC</button>
         </div>
       </form>
     </div>

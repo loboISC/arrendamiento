@@ -25,7 +25,6 @@ model accesorios {
   condicion             String?          @db.VarChar(30)
   tarifa_dia            Decimal?         @db.Decimal(10, 2)
   proximo_mantenimiento DateTime?        @db.Date
-  componentes           Json?
   categoria             String?          @db.VarChar(100)
   stock                 Int?             @default(1)
   precio_unitario       Decimal?         @db.Decimal(12, 2)
@@ -593,6 +592,8 @@ model credit_notes {
   folio                 String?
   relation_type         String                  @default("01") @db.VarChar(5)
   reason                String
+  cancellation_reason   String?                 @db.VarChar(2)
+  cancellation_uuid_sust String?                @db.Uuid
   subtotal              Decimal                 @default(0) @db.Decimal(14, 2)
   tax                   Decimal                 @default(0) @db.Decimal(14, 2)
   total                 Decimal                 @default(0) @db.Decimal(14, 2)

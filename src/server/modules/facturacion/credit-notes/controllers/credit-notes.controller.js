@@ -63,7 +63,8 @@ exports.timbrar = async (req, res) => {
 
 exports.cancelar = async (req, res) => {
   try {
-    const data = await servicio.cancelar(req.params.id, req.body?.motivo, req.user);
+    const { motivo, uuidSustitucion } = req.body || {};
+    const data = await servicio.cancelar(req.params.id, { motivo, uuidSustitucion }, req.user);
     res.json({ success: true, data });
   } catch (error) {
     responderError(res, error);

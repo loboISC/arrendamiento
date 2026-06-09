@@ -248,6 +248,16 @@
     return copiado;
   }
 
+  function formatearFechaADDMMYYYY(fechaStr) {
+    if (!fechaStr) return '-';
+    const fecha = new Date(fechaStr);
+    if (isNaN(fecha.getTime())) return fechaStr;
+    const day = String(fecha.getDate()).padStart(2, '0');
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const year = fecha.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
   function renderizarFilasHistorial(items) {
     return (items || []).map((nc) => {
       const status = String(nc.status || '').toUpperCase();
@@ -302,12 +312,22 @@
 
       return `
         <tr>
-          <td>${badge}</td>
           <td>${escaparHtml(folio)}</td>
           <td style="min-width:150px;">${renderizarUuidHistorial(nc.uuid)}</td>
           <td>${escaparHtml(cliente)}</td>
-          <td>${escaparHtml(responsable)}</td>
-          <td>${total}</td>
+          <td>
+            <span style="color: #555;">${formatearFechaADDMMYYYY(nc.created_at) || '-'}</span>
+          </td>
+          <td>
+            <span class="badge badge-pue">${nc.relation_type || '—'}</span>
+          </td>
+          <td>
+            <span style="color: #555; font-size: 0.9em; font-weight: 500;">${escaparHtml(responsable)}</span>
+          </td>
+          <td>${badge}</td>
+          <td>
+            <strong style="color: #333;">${total}</strong>
+          </td>
           <td class="nc-historial-acciones">
             ${acciones.join(' ')}
           </td>
@@ -720,11 +740,13 @@
               <table class="nc-tabla nc-tabla-historial">
                 <thead>
                   <tr>
-                    <th>Estado</th>
                     <th>Folio</th>
                     <th>UUID</th>
                     <th>Cliente</th>
+                    <th>Emisión</th>
+                    <th>Método</th>
                     <th>Responsable</th>
+                    <th>Estado</th>
                     <th>Total</th>
                     <th></th>
                   </tr>
@@ -1262,74 +1284,7 @@
       // Historial: cancelar nota de crédito timbrada ante el SAT
       if (obj.dataset.ncCancelar) {
         const idNota = obj.dataset.ncCancelar;
-        if (!window.Swal) {
-          const confirmo = confirm('¿Estás seguro de que deseas cancelar esta Nota de Crédito?');
-          if (!confirmo) return;
-          const motivo = prompt('Ingresa el motivo de cancelación del SAT (01, 02, 03 o 04):', '02');
-          if (!motivo) return;
-          try {
-            await api(`/api/credit-notes/${idNota}/cancel`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ motivo })
-            });
-            ui.aviso('Nota Cancelada', 'La nota de crédito se ha cancelado correctamente.', 'success');
-            await cargarHistorialNotas();
-          } catch (e) {
-            ui.aviso('Error de Cancelación', e.message, 'error');
-          }
-        } else {
-          const { value: motivo } = await window.Swal.fire({
-            title: 'Cancelar Nota de Crédito',
-            text: 'Selecciona el motivo de cancelación ante el SAT:',
-            input: 'select',
-            inputOptions: {
-              '02': '02 - Comprobante emitido con errores sin relación',
-              '03': '03 - No se llevó a cabo la operación',
-              '01': '01 - Comprobante emitido con errores con relación',
-              '04': '04 - Operación nominativa relacionada en la factura global'
-            },
-            inputPlaceholder: 'Selecciona un motivo',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, cancelar',
-            cancelButtonText: 'No, conservar',
-            inputValidator: (value) => {
-              if (!value) {
-                return 'Debes seleccionar un motivo de cancelación';
-              }
-            }
-          });
-
-          if (motivo) {
-            window.Swal.fire({
-              title: 'Cancelando Nota...',
-              text: 'Enviando solicitud al SAT, espera un momento.',
-              allowOutsideClick: false,
-              allowEscapeKey: false,
-              didOpen: () => { window.Swal.showLoading(); }
-            });
-
-            try {
-              await api(`/api/credit-notes/${idNota}/cancel`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ motivo })
-              });
-              window.Swal.close();
-              await window.Swal.fire(
-                'Nota Cancelada',
-                'La nota de crédito se ha cancelado correctamente ante el SAT.',
-                'success'
-              );
-              await cargarHistorialNotas();
-            } catch (e) {
-              window.Swal.close();
-              window.Swal.fire('Error', e.message || 'No se pudo cancelar la nota de crédito.', 'error');
-            }
-          }
-        }
+        abrirModalCancelarNC(idNota);
       }
 
       /* Paso 2 — Cambio de Motivo inline */
@@ -1562,3 +1517,190 @@
     cargarServiciosInventarioNC().then(() => renderizar());
   });
 })();
+
+/* =========================================================
+   CANCELACIÓN DE NOTAS DE CRÉDITO — MODAL SAT
+========================================================= */
+let cancelacionNCUuidActivo = null;
+const REGEX_UUID_SAT_NC = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+function abrirModalCancelarNC(ncUuid) {
+  cancelacionNCUuidActivo = ncUuid;
+
+  const modal = document.getElementById('cancelar-nc-modal');
+  const uuidEl = document.getElementById('cancelar-nc-uuid-display');
+  const motivoEl = document.getElementById('cancelar-nc-motivo');
+  const sustInput = document.getElementById('cancelar-nc-uuid-sustitucion');
+  const apiError = document.getElementById('cancelar-nc-api-error');
+
+  if (!modal) return;
+
+  if (uuidEl) uuidEl.textContent = ncUuid || '—';
+  if (motivoEl) motivoEl.value = '';
+  if (sustInput) sustInput.value = '';
+  if (apiError) {
+    apiError.textContent = '';
+    apiError.classList.remove('visible');
+  }
+  ocultarErrorUuidSustitucionNC();
+  alternarCampoUuidSustitucionCancelacionNC('');
+
+  modal.style.display = 'flex';
+}
+
+function cerrarModalCancelarNC() {
+  const modal = document.getElementById('cancelar-nc-modal');
+  if (modal) modal.style.display = 'none';
+  cancelacionNCUuidActivo = null;
+  const btn = document.getElementById('btn-confirmar-cancelar-nc');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa fa-ban"></i> Cancelar NC';
+  }
+}
+
+function alternarCampoUuidSustitucionCancelacionNC(motivo) {
+  const wrap = document.getElementById('cancelar-nc-uuid-sust-wrap');
+  const input = document.getElementById('cancelar-nc-uuid-sustitucion');
+  if (!wrap || !input) return;
+
+  if (motivo === '01') {
+    wrap.style.display = 'block';
+    input.required = true;
+  } else {
+    wrap.style.display = 'none';
+    input.required = false;
+    input.value = '';
+  }
+}
+
+function mostrarErrorUuidSustitucionNC() {
+  const error = document.getElementById('cancelar-nc-uuid-sust-error');
+  if (error) error.classList.add('visible');
+}
+
+function ocultarErrorUuidSustitucionNC() {
+  const error = document.getElementById('cancelar-nc-uuid-sust-error');
+  if (error) error.classList.remove('visible');
+}
+
+function mostrarErrorApiCancelacionNC(mensaje) {
+  const error = document.getElementById('cancelar-nc-api-error');
+  if (error) {
+    error.textContent = mensaje;
+    error.classList.add('visible');
+  }
+}
+
+function validarFormularioCancelacionNC() {
+  const motivoEl = document.getElementById('cancelar-nc-motivo');
+  const motivo = motivoEl?.value?.trim() || '';
+  if (!motivo) {
+    mostrarErrorApiCancelacionNC('Debes seleccionar un motivo de cancelación.');
+    return null;
+  }
+
+  let uuidSustitucion;
+  if (motivo === '01') {
+    uuidSustitucion = document.getElementById('cancelar-nc-uuid-sustitucion')?.value?.trim() || '';
+    if (!uuidSustitucion) {
+      mostrarErrorUuidSustitucionNC();
+      mostrarErrorApiCancelacionNC('El UUID de NC sustitución es obligatorio para el motivo 01.');
+      return null;
+    }
+    if (!REGEX_UUID_SAT_NC.test(uuidSustitucion)) {
+      mostrarErrorUuidSustitucionNC();
+      return null;
+    }
+    ocultarErrorUuidSustitucionNC();
+  } else {
+    ocultarErrorUuidSustitucionNC();
+  }
+
+  return { motivo, uuidSustitucion };
+}
+
+async function enviarCancelacionNC(event) {
+  event.preventDefault();
+  const ncUuid = cancelacionNCUuidActivo;
+  if (!ncUuid) return;
+
+  const datos = validarFormularioCancelacionNC();
+  if (!datos) return;
+
+  const btn = document.getElementById('btn-confirmar-cancelar-nc');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Cancelando...';
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    const payload = { motivo: datos.motivo };
+    if (datos.motivo === '01' && datos.uuidSustitucion) {
+      payload.uuidSustitucion = datos.uuidSustitucion;
+    }
+
+    const response = await fetch(`/api/credit-notes/${ncUuid}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      mostrarErrorApiCancelacionNC(result.error || result.message || 'No se pudo cancelar la nota de crédito');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-ban"></i> Cancelar NC';
+      }
+      return;
+    }
+
+    cerrarModalCancelarNC();
+
+    if (window.Swal) {
+      await window.Swal.fire('NC Cancelada', 'La nota de crédito se ha cancelado correctamente ante el SAT.', 'success');
+    } else {
+      alert('Nota de crédito cancelada correctamente.');
+    }
+
+    cargarHistorialNotas();
+  } catch (error) {
+    console.error('Error en enviarCancelacionNC:', error);
+    mostrarErrorApiCancelacionNC('Ocurrió un error al procesar la cancelación.');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa fa-ban"></i> Cancelar NC';
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const motivoSelect = document.getElementById('cancelar-nc-motivo');
+  if (motivoSelect) {
+    motivoSelect.addEventListener('change', (e) => {
+      alternarCampoUuidSustitucionCancelacionNC(e.target.value);
+    });
+  }
+
+  const sustInput = document.getElementById('cancelar-nc-uuid-sustitucion');
+  if (sustInput) {
+    sustInput.addEventListener('input', () => {
+      if (REGEX_UUID_SAT_NC.test(sustInput.value.trim())) {
+        ocultarErrorUuidSustitucionNC();
+      }
+    });
+  }
+
+  const modal = document.getElementById('cancelar-nc-modal');
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) cerrarModalCancelarNC();
+    });
+  }
+});

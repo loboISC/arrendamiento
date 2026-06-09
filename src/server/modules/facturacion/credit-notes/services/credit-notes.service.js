@@ -506,13 +506,15 @@ class ServicioNotasCredito {
     }
   }
 
-  async cancelar(id, motivo, usuario) {
+  async cancelar(id, datosCancelacion, usuario) {
     const nota = await this.repositorio.obtenerPorId(id);
     if (!nota) {
       const error = new Error('Nota de credito no encontrada.');
       error.statusCode = 404;
       throw error;
     }
+
+    const motivo = datosCancelacion?.motivo || datosCancelacion;
     if (!motivo) {
       const error = new Error('El motivo de cancelacion es obligatorio.');
       error.statusCode = 400;
@@ -521,11 +523,18 @@ class ServicioNotasCredito {
 
     const proveedor = this.obtenerProveedor(nota.provider);
     if (nota.uuid) await proveedor.cancelarFactura(nota.uuid, motivo);
+
+    const uuidSustitucion = datosCancelacion?.uuidSustitucion || null;
     await this.repositorio.registrarLog(id, 'CANCELACION', {
-      request: { motivo },
+      request: { motivo, uuidSustitucion },
       user_id: usuario?.id_usuario || usuario?.id || null
     });
-    return this.repositorio.actualizarEstado(id, 'CANCELADA', { sat_status: 'CANCELADA' });
+
+    return this.repositorio.actualizarEstado(id, 'CANCELADA', {
+      sat_status: 'CANCELADA',
+      cancellation_reason: motivo,
+      cancellation_uuid_sust: uuidSustitucion
+    });
   }
 
   async aplicar(id, usuario) {
