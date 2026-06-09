@@ -894,7 +894,7 @@ document.addEventListener('keydown', function (e) {
       els.stepConfig?.classList.add('cr-step--active');
       els.stepShipping?.classList.remove('cr-step--active');
       // Refrescar visual del resumen por si el usuario ya tenía datos
-      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch { }
+      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } } catch { }
     } else if (step === 'shipping') {
       document.body.classList.remove('cr-mode-config');
       document.body.classList.add('cr-mode-shipping');
@@ -910,7 +910,7 @@ document.addEventListener('keydown', function (e) {
       // Ensure viewport starts at shipping section top
       setTimeout(() => secShipping?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 20);
       // Enlazar y renderizar el resumen al entrar al Paso 4
-      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch { }
+      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } } catch { }
     } else {
       document.body.classList.remove('cr-mode-config');
       document.body.classList.remove('cr-mode-shipping');
@@ -1945,7 +1945,10 @@ document.addEventListener('keydown', function (e) {
         accGuarantee += sale * qty;
       });
     } catch { }
-    const deposit = prodGuarantee + accGuarantee;
+    let deposit = prodGuarantee + accGuarantee;
+    if (window.isEditModeLoading && window.cotizacionEditandoGarantia !== undefined) {
+      deposit = window.cotizacionEditandoGarantia;
+    }
 
     // Pintar en UI
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatCurrency(val); };
@@ -2092,7 +2095,10 @@ document.addEventListener('keydown', function (e) {
     const total = subtotalFinal + iva;
 
     // Depósito (Garantía total)
-    const deposit = prodGuarantee + accGuarantee;
+    let deposit = prodGuarantee + accGuarantee;
+    if (window.isEditModeLoading && window.cotizacionEditandoGarantia !== undefined) {
+      deposit = window.cotizacionEditandoGarantia;
+    }
 
     // Pintar en UI
     const set = (id, val) => {
@@ -6587,6 +6593,27 @@ document.addEventListener('keydown', function (e) {
 
   // Función para cargar datos de cotización en el formulario de renta
   window.cargarDatosEnFormularioRenta = function (cotizacion) {
+    window.isEditModeLoading = true;
+    window.cotizacionEditandoGarantia = parseFloat(cotizacion.garantia_monto || 0);
+
+    // Limpiar el flag al primer gesto real del usuario (no a un timeout frágil).
+    // También hay un safety-timeout de 15 s por si el usuario no interactúa.
+    if (window._clearEditModeFlagHandler) {
+      document.removeEventListener('mousedown', window._clearEditModeFlagHandler, true);
+      document.removeEventListener('keydown',   window._clearEditModeFlagHandler, true);
+      clearTimeout(window._clearEditModeFlagTimer);
+    }
+    window._clearEditModeFlagHandler = function () {
+      window.isEditModeLoading = false;
+      document.removeEventListener('mousedown', window._clearEditModeFlagHandler, true);
+      document.removeEventListener('keydown',   window._clearEditModeFlagHandler, true);
+      clearTimeout(window._clearEditModeFlagTimer);
+      console.log('[cargarDatosEnFormularioRenta] isEditModeLoading cleared on user interaction');
+    };
+    document.addEventListener('mousedown', window._clearEditModeFlagHandler, true);
+    document.addEventListener('keydown',   window._clearEditModeFlagHandler, true);
+    window._clearEditModeFlagTimer = setTimeout(window._clearEditModeFlagHandler, 15000);
+
     try {
       console.log('[cargarDatosEnFormularioRenta] Cargando datos:', cotizacion);
 
@@ -7126,8 +7153,8 @@ document.addEventListener('keydown', function (e) {
 
           // Navegar al paso 4
           if (typeof gotoStep === 'function') {
-            gotoStep(4); // Ir al paso de resumen
-            console.log('[cargarDatosEnFormularioRenta] gotoStep(4) ejecutado');
+            gotoStep('shipping'); // Ir al paso de resumen
+            console.log('[cargarDatosEnFormularioRenta] gotoStep(shipping) ejecutado');
           } else {
             // Fallback: mostrar sección directamente
             const sections = document.querySelectorAll('.cr-section');
@@ -7167,7 +7194,8 @@ document.addEventListener('keydown', function (e) {
             console.log('[cargarDatosEnFormularioRenta] showQuoteSummary() ejecutado');
           }
 
-          // Última actualización forzada del resumen
+          // Última actualización forzada del resumen (flag sigue activo — se limpia
+          // cuando el usuario interactúa con el formulario, ver arriba).
           setTimeout(() => {
             if (typeof forzarActualizacionResumen === 'function') {
               forzarActualizacionResumen();
