@@ -5,7 +5,7 @@ const fs = require('fs');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dir = 'csd_files/';
+    const dir = 'C:\\Users\\siste\\arrendamiento\\csd_files';
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }

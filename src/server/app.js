@@ -188,7 +188,7 @@ app.use('/api/facturas', facturasRoutes);
 app.use('/api/entregas', entregasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-//app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
+app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
 app.use('/api/configuracion/smtp', configuracionSmtpRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/encuestas', encuestasRoutes);

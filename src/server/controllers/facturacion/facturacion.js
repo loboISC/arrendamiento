@@ -846,7 +846,7 @@ exports.timbrarFactura = async (req, res) => {
                     tipoRelacion: relacionadosInput.tipoRelacion,
                     uuid: relacionadosInput.foliosFiscales || relacionadosInput.uuid
                 } : null,
-                observaciones: observaciones || ''
+                observaciones: notasInternas || observaciones || ''
             };
 
             // Generar PDF con el folio del SAT como nombre
@@ -1319,6 +1319,7 @@ exports.vistaPreviaFactura = async (req, res) => {
         const relacionadosInput = CfdiRelacionados || factura?.CfdiRelacionados || null;
         const conceptosInput = Array.isArray(conceptos) ? conceptos : [];
         const observaciones = factura?.observaciones || '';
+        const notasInternas = String(factura?.notas_internas || '');
         
         // Obtener configuración del emisor
         const emisorQuery = await db.query(
@@ -1401,7 +1402,7 @@ exports.vistaPreviaFactura = async (req, res) => {
                 tipoRelacion: relacionadosInput.tipoRelacion,
                 uuid: relacionadosInput.foliosFiscales || relacionadosInput.uuid
             } : null,
-            observaciones: observaciones,
+            observaciones: notasInternas || observaciones || '',
             factura: {
                 hayDescuentos: totalDescuento > 0
             }

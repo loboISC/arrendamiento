@@ -8,6 +8,72 @@ const {
     tipoRelacionTexto
 } = require('../../utils/facturacion/satCatalogos');
 
+// ── Catálogos SAT para Régimen Fiscal y Uso CFDI ──────────────────────────────
+const REGIMEN_FISCAL_SAT = {
+    '601': 'General de Ley Personas Morales',
+    '603': 'Personas Morales con Fines no Lucrativos',
+    '605': 'Sueldos y Salarios e Ingresos Asimilados a Salarios',
+    '606': 'Arrendamiento',
+    '607': 'Régimen de Enajenación o Adquisición de Bienes',
+    '608': 'Demás ingresos',
+    '609': 'Consolidación',
+    '610': 'Residentes en el Extranjero sin Establecimiento Permanente en México',
+    '611': 'Ingresos por Dividendos (socios y accionistas)',
+    '612': 'Personas Físicas con Actividades Empresariales y Profesionales',
+    '614': 'Ingresos por intereses',
+    '615': 'Régimen de los ingresos por obtención de premios',
+    '616': 'Sin obligaciones fiscales',
+    '620': 'Sociedades Cooperativas de Producción que optan por diferir sus ingresos',
+    '621': 'Incorporación Fiscal',
+    '622': 'Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras',
+    '623': 'Opcional para Grupos de Sociedades',
+    '624': 'Coordinados',
+    '625': 'Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas',
+    '626': 'Régimen Simplificado de Confianza'
+};
+
+const USO_CFDI_SAT = {
+    'G01': 'Adquisición de mercancias',
+    'G02': 'Devoluciones, descuentos o bonificaciones',
+    'G03': 'Gastos en general',
+    'I01': 'Construcciones',
+    'I02': 'Mobilario y equipo de oficina por inversiones',
+    'I03': 'Equipo de transporte',
+    'I04': 'Equipo de computo y accesorios',
+    'I05': 'Dados, troqueles, moldes, matrices y herramental',
+    'I06': 'Comunicaciones telefónicas',
+    'I07': 'Comunicaciones satelitales',
+    'I08': 'Otra maquinaria y equipo',
+    'D01': 'Honorarios médicos, dentales y gastos hospitalarios',
+    'D02': 'Gastos médicos por incapacidad o discapacidad',
+    'D03': 'Gastos funerales',
+    'D04': 'Donativos',
+    'D05': 'Intereses reales efectivamente pagados por créditos hipotecarios (casa habitación)',
+    'D06': 'Aportaciones voluntarias al SAR',
+    'D07': 'Primas por seguros de gastos médicos',
+    'D08': 'Gastos de transportación escolar obligatoria',
+    'D09': 'Depósitos en cuentas para el ahorro, primas que tengan como base planes de pensiones',
+    'D10': 'Pagos por servicios educativos (colegiaturas)',
+    'S01': 'Sin efectos fiscales',
+    'CP01': 'Pagos',
+    'CN01': 'Nómina'
+};
+
+/**
+ * Devuelve "[código] — [descripción]" o solo el código si no existe en el catálogo.
+ */
+function regimenFiscalTexto(clave) {
+    const key = String(clave || '').trim();
+    const desc = REGIMEN_FISCAL_SAT[key];
+    return desc ? `${key} — ${desc}` : key;
+}
+
+function usoCfdiTexto(clave) {
+    const key = String(clave || '').trim();
+    const desc = USO_CFDI_SAT[key];
+    return desc ? `${key} — ${desc}` : key;
+}
+
 class PDFService {
     constructor() {
         this.projectRoot = path.resolve(__dirname, '../../..');
@@ -94,7 +160,7 @@ class PDFService {
                 '{{certificado_emisor}}': facturaData.isPreview ? '00000000000000000000' : facturaData.cfdiInfo.noCertificadoEmisor,
                 '{{receptor_nombre}}': facturaData.receptor.nombreParaPdf || facturaData.receptor.nombre,
                 '{{receptor_rfc}}': facturaData.receptor.rfc,
-                '{{receptor_regimen}}': facturaData.receptor.regimenFiscal || '612',
+                '{{receptor_regimen}}': regimenFiscalTexto(facturaData.receptor.regimenFiscal || '612'),
                 '{{receptor_cp}}': facturaData.receptor.codigoPostal,
                 '{{receptor_colonia}}': facturaData.receptor.colonia || '--',
                 '{{receptor_localidad}}': facturaData.receptor.localidad || '--',
@@ -102,7 +168,7 @@ class PDFService {
                 '{{receptor_estado}}': facturaData.receptor.estado || '--',
                 '{{receptor_pais}}': facturaData.receptor.pais || '--',
                 '{{receptor_direccion}}': facturaData.receptor.direccion || 'DOMICILIO CONOCIDO',
-                '{{uso_cfdi}}': facturaData.receptor.usoCfdi,
+                '{{uso_cfdi}}': usoCfdiTexto(facturaData.receptor.usoCfdi),
                 '{{tipo_comprobante}}': facturaData.comprobante?.tipoComprobanteTexto || 'Factura',
                 '{{exportacion}}': '01 - No aplica',
                 '{{moneda}}': facturaData.comprobante?.moneda || 'MXN',
@@ -156,6 +222,7 @@ class PDFService {
                         <td class="text-center" style="font-size: 10px; padding: 5px; border: 1px solid #000;">${c.cantidad}</td>
                         <td style="font-size: 9px; padding: 5px; border: 1px solid #000;">${unidadDisplay}</td>
                         <td style="font-size: 9.5px; padding: 5px; border: 1px solid #000; line-height: 1.2;">
+                            ${c.noIdentificacion ? `<span style="font-size: 8px; color: #475569; font-weight: 600; display: block; margin-bottom: 2px;">Clave Prod. ${c.noIdentificacion}</span>` : ''}
                             ${c.descripcion}
                             ${c.caracteristicas ? `<br/><span style="color: #475569; font-size: 8px; font-weight: 500;">${c.caracteristicas}</span>` : ''}
                         </td>
@@ -220,6 +287,14 @@ class PDFService {
                         closureHtml = '';
                     }
                 }
+
+                // Observaciones (SOLO P1, SOBRE el receptor) — Ajuste 1
+                const observacionesHtml = isFirstPage && facturaData.observaciones
+                    ? `<div style="margin-top: 5px; margin-bottom: 8px; padding: 7px 10px; border: 1.2px solid #1e3a8a; border-radius: 4px; background: #f8fafc; font-family: 'Arial', sans-serif;">
+                        <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #1e3a8a; display: block; margin-bottom: 4px;">OBSERVACIONES</span>
+                        <span style="font-size: 9.5px; color: #1e293b; white-space: pre-wrap; line-height: 1.4;">${facturaData.observaciones}</span>
+                       </div>`
+                    : '';
 
                 // Cabecera Receptor (SOLO P1)
                 const receptorHtml = isFirstPage ? `
@@ -306,6 +381,7 @@ class PDFService {
                 pagesHtml += `
                     <div class="page-container" style="padding: 0 10mm; width: 100%; box-sizing: border-box; ${pageBreakStyle}">
                         <div>
+                            ${observacionesHtml}
                             ${receptorHtml}
                             <table class="concepts-table" style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                                 <thead>
@@ -398,10 +474,10 @@ class PDFService {
                         <div class="empresa-title">ANDAMIOS Y PROYECTOS TORRES</div>
                         <div style="font-weight: 800; font-size: 11px; margin-bottom: 2px;">${replacements['{{emisor_rfc}}']}</div>
                         <div>ORIENTE 174 290-</div>
-                        <div>COL: MOCTEZUMA 2A SECCION C.P.: 15330</div>
+                        <div>COL: MOCTEZUMA 2A SECCION C.P.: 15530</div>
                         <div>VENUSTIANO CARRANZA, CDMX, MÉXICO</div>
-                        <div>TEL: 55 5571-7105 / 55 2643-0024 CEL: 55 62 55 78 19 <br>EMAIL: ventas@andamiostorres.com</div>
-                        <div style="font-size: 9px; margin-top: 2px;">CUENTA(S): VISITE NUESTRA AVISO DE PRIVACIDAD EN: <br> www.andamiostorres.com</div>
+                        <div>TEL: 55 5571-7105 / 55 2643-0024 CEL: 55 62 55 78 19 EMAIL: facturas@andamiostorres.com</div>
+                        <div style="font-size: 9px; margin-top: 2px;">CUENTA(S): VISITE NUESTRA <span style="color: #1D4ED8;">AVISO DE PRIVACIDAD</span> EN: www.andamiostorres.com</div>
                     </div>
                     <div class="folio-col">
                         <div class="folio-label">${facturaData.comprobante?.tituloPdf || 'Factura CFDI'} - Versión 4.0</div>

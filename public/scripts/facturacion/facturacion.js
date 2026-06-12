@@ -2719,6 +2719,7 @@ function cargarConceptosDesdeCotizacion(cot, tipo = 'VENTA') {
                 claveProductoServicio: p.clave_sat_productos || '01010101',
                 claveUnidad: p.clave_unidad || 'H87',
                 descripcion: p.nombre || p.descripcion || 'Producto',
+                noIdentificacion: String(p.clave || ''),
                 valorUnitario: valorUnitario,
                 descuento: descuentoTotal,
                 importe: (cantidad * valorUnitario) - descuentoTotal,
@@ -2770,6 +2771,7 @@ function agregarFilaConcepto(c = {}) {
         <td style="font-weight:700;"><span class="importe-fila">$${((c.cantidad || 1) * (c.valorUnitario || 0) - (c.descuento || 0)).toFixed(2)}</span></td>
         <input type="hidden" class="peso-unitario" value="${c.peso || 0}">
         <input type="hidden" class="caracteristicas" value="${(c.caracteristicas || '').replace(/"/g, '&quot;')}">
+        <input type="hidden" class="no-identificacion" value="${(c.noIdentificacion || '').replace(/"/g, '&quot;')}">
     `;
 
     tbody.appendChild(row);
@@ -3167,6 +3169,7 @@ async function mostrarVistaPrevia() {
                     valorUnitario: parseFloat(fila.querySelector('.p-unitario').value),
                     descuento: parseFloat(fila.querySelector('.descuento').value) || 0,
                     descripcion: fila.querySelector('.descripcion').value,
+                    noIdentificacion: fila.querySelector('.no-identificacion')?.value || '',
                     claveProductoServicio: fila.querySelector('.clave-sat').value,
                     claveUnidad: fila.querySelector('.clave-unidad').value,
                     unidad: fila.querySelector('.unidad')?.value || 'Unidad'
@@ -3269,6 +3272,7 @@ function obtenerDatosTimbradoForm() {
                 cantidad,
                 claveUnidad: row.querySelector('.clave-unidad').value,
                 descripcion: row.querySelector('.descripcion').value,
+                noIdentificacion: row.querySelector('.no-identificacion')?.value || '',
                 valorUnitario,
                 descuento,
                 peso: parseFloat(row.querySelector('.peso-unitario')?.value || 0),
