@@ -129,12 +129,12 @@ class PDFService {
             const totalLetra = this.convertirTotalALetra(facturaData.totales.total);
             const esEgreso = facturaData.comprobante?.tipoComprobante === 'E'
                 || facturaData.isCreditNote === true;
-            const tieneRelacionados = !!(facturaData.relacionados && 
-                (facturaData.relacionados.uuid || 
-                 (Array.isArray(facturaData.relacionados.foliosFiscales) && facturaData.relacionados.foliosFiscales.length > 0)));
+            const tieneRelacionados = !!(facturaData.relacionados &&
+                (facturaData.relacionados.uuid ||
+                    (Array.isArray(facturaData.relacionados.foliosFiscales) && facturaData.relacionados.foliosFiscales.length > 0)));
             const tipoRelacionClave = facturaData.relacionados?.tipoRelacion || '01';
             const tipoRelacionEtiqueta = tipoRelacionTexto(tipoRelacionClave);
-            
+
             let folioFiscalRelacionado = 'PENDIENTE';
             if (facturaData.relacionados) {
                 if (Array.isArray(facturaData.relacionados.foliosFiscales)) {
@@ -199,7 +199,7 @@ class PDFService {
                 // P1 con receptor: 7 ítems máximo
                 // Páginas siguientes: 10 ítems máximo
                 let itemsThisPage = isFirstPage ? 8 : 10;
-                
+
                 // Si es el último bloque y queremos intentar que queden totales en la misma página
                 // pero ya no forzamos 10 si no es necesario.
                 if (conceptos.length < itemsThisPage) {
@@ -222,8 +222,10 @@ class PDFService {
                         <td class="text-center" style="font-size: 10px; padding: 5px; border: 1px solid #000;">${c.cantidad}</td>
                         <td style="font-size: 9px; padding: 5px; border: 1px solid #000;">${unidadDisplay}</td>
                         <td style="font-size: 9.5px; padding: 5px; border: 1px solid #000; line-height: 1.2;">
-                            ${c.noIdentificacion ? `<span style="font-size: 8px; color: #475569; font-weight: 600; display: block; margin-bottom: 2px;">Clave Prod. ${c.noIdentificacion}</span>` : ''}
-                            ${c.descripcion}
+                            ${c.noIdentificacion
+                            ? `<span style="font-size: 8px; color: #475569; font-weight: 600; display: block; margin-bottom: 2px;">Clave Prod. ${c.noIdentificacion}</span>`
+                            : ''}
+                            ${String(c.descripcion || '').replace(/^\[.*?\]\s*/, '')}
                             ${c.caracteristicas ? `<br/><span style="color: #475569; font-size: 8px; font-weight: 500;">${c.caracteristicas}</span>` : ''}
                         </td>
                         <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000;">$ ${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -473,11 +475,10 @@ class PDFService {
                     <div class="info-col">
                         <div class="empresa-title">ANDAMIOS Y PROYECTOS TORRES</div>
                         <div style="font-weight: 800; font-size: 11px; margin-bottom: 2px;">${replacements['{{emisor_rfc}}']}</div>
-                        <div>ORIENTE 174 290-</div>
-                        <div>COL: MOCTEZUMA 2A SECCION C.P.: 15530</div>
+                        <div>ORIENTE 174 290-COL. MOCTEZUMA 2A SECCION C.P.: 15530</div>
                         <div>VENUSTIANO CARRANZA, CDMX, MÉXICO</div>
-                        <div>TEL: 55 5571-7105 / 55 2643-0024 CEL: 55 62 55 78 19 EMAIL: facturas@andamiostorres.com</div>
-                        <div style="font-size: 9px; margin-top: 2px;">CUENTA(S): VISITE NUESTRA <span style="color: #1D4ED8;">AVISO DE PRIVACIDAD</span> EN: www.andamiostorres.com</div>
+                        <div>TEL: 55 5571-7105 / 55 2643-0024 CEL: 55 62 55 78 19 <br>EMAIL: facturas@andamiostorres.com</div>
+                        <div style="font-size: 9px; margin-top: 2px;">VISITE NUESTRO <span style="color: #1D4ED8;">AVISO DE PRIVACIDAD</span> EN: <br><span style="color: #1D4ED8;"> www.andamiostorres.com</span></div>
                     </div>
                     <div class="folio-col">
                         <div class="folio-label">${facturaData.comprobante?.tituloPdf || 'Factura CFDI'} - Versión 4.0</div>
@@ -821,10 +822,10 @@ class PDFService {
                         <div class="empresa-title">ANDAMIOS Y PROYECTOS TORRES</div>
                         <div style="font-weight: 800; font-size: 11px; margin-bottom: 2px;">APT100310EC2</div>
                         <div>ORIENTE 174 290-</div>
-                        <div>COL: MOCTEZUMA 2A SECCION C.P.: 15330</div>
+                        <div>COL. MOCTEZUMA 2A SECCION C.P.: 15530</div>
                         <div>VENUSTIANO CARRANZA, CDMX, MEXICO</div>
                         <div>TEL: 55 5571-7105 / 55 2643-0024 CEL: 55 62 55 78 19 <br>EMAIL: ventas@andamiostorres.com</div>
-                        <div style="font-size: 9px; margin-top: 2px;">CUENTA(S): VISITE NUESTRA AVISO DE PRIVACIDAD EN: <br> www.andamiostorres.com</div>
+                        <div style="font-size: 9px; margin-top: 2px;"> VISITE NUESTRO <span style="color: #1D4ED8;">AVISO DE PRIVACIDAD</span> <a href="www.andamiostorres.com">www.andamiostorres.com</a></div>
                     </div>
                     <div class="folio-col">
                         <div class="folio-label">Recepcion de Pago CFDI 4.0</div>
@@ -909,20 +910,20 @@ class PDFService {
         try {
             browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
-            
+
             // Construir la URL local del servidor. 
             // Usamos localhost y el puerto configurado (o 3001 por defecto)
             const port = process.env.PORT || 3001;
             const url = `http://localhost:${port}/templates/pdf_templates/hoja_pedido2.html?id_contrato=${idContrato}`;
-            
+
             console.log(`[PDFService] Generando Hoja de Pedido desde URL: ${url}`);
-            
+
             // Navegar a la página y esperar a que la red esté inactiva (para que el fetch de autoRellenar termine)
             await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
-            
+
             // Ocultar la barra de herramientas si existe
             await page.addStyleTag({ content: '.toolbar { display: none !important; }' });
-            
+
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
                 printBackground: true,

@@ -2442,6 +2442,7 @@ function renderizarResultadosModal(results, container) {
                 document.getElementById('swal-input-price').value = res.price || 0;
                 // Guardar peso en atributo data para recuperarlo al agregar
                 document.getElementById('swal-input-desc').dataset.peso = res.peso || 0;
+                document.getElementById('swal-input-desc').dataset.noIdentificacion = res.clave || '';
                 window.recalcSwal();
                 container.style.display = 'none';
             }
@@ -2547,6 +2548,14 @@ function abrirModalAgregarConcepto() {
                 return false;
             }
 
+            let noIdent = document.getElementById('swal-input-desc').dataset.noIdentificacion || '';
+            if (!noIdent) {
+                const match = desc.match(/^\[(.*?)\]/);
+                if (match) {
+                    noIdent = match[1];
+                }
+            }
+
             return {
                 descripcion: desc,
                 cantidad: parseFloat(cant),
@@ -2556,7 +2565,8 @@ function abrirModalAgregarConcepto() {
                 claveProductoServicio: sat,
                 claveUnidad: unidad,
                 peso: parseFloat(document.getElementById('swal-input-desc').dataset.peso) || 0,
-                caracteristicas: document.getElementById('swal-input-caracteristicas').value.trim()
+                caracteristicas: document.getElementById('swal-input-caracteristicas').value.trim(),
+                noIdentificacion: noIdent
             };
         }
     }).then((result) => {
@@ -2756,6 +2766,14 @@ function agregarFilaConcepto(c = {}) {
     const tbody = document.getElementById('products-tbody');
     const row = document.createElement('tr');
 
+    let noIdent = c.noIdentificacion || '';
+    if (!noIdent && c.descripcion) {
+        const match = String(c.descripcion).match(/^\[(.*?)\]/);
+        if (match) {
+            noIdent = match[1];
+        }
+    }
+
     row.innerHTML = `
         <td style="text-align:center;">
             <button class="btn-row-delete" onclick="this.closest('tr').remove(); actualizarTotalesTimbrado();">
@@ -2771,7 +2789,7 @@ function agregarFilaConcepto(c = {}) {
         <td style="font-weight:700;"><span class="importe-fila">$${((c.cantidad || 1) * (c.valorUnitario || 0) - (c.descuento || 0)).toFixed(2)}</span></td>
         <input type="hidden" class="peso-unitario" value="${c.peso || 0}">
         <input type="hidden" class="caracteristicas" value="${(c.caracteristicas || '').replace(/"/g, '&quot;')}">
-        <input type="hidden" class="no-identificacion" value="${(c.noIdentificacion || '').replace(/"/g, '&quot;')}">
+        <input type="hidden" class="no-identificacion" value="${(noIdent || '').replace(/"/g, '&quot;')}">
     `;
 
     tbody.appendChild(row);
@@ -3164,12 +3182,20 @@ async function mostrarVistaPrevia() {
                 moneda: document.getElementById('timb-moneda').value || 'MXN'
             },
             conceptos: Array.from(filas).map(fila => {
+                const descVal = fila.querySelector('.descripcion').value;
+                let noIdent = fila.querySelector('.no-identificacion')?.value || '';
+                if (!noIdent && descVal) {
+                    const match = descVal.match(/^\[(.*?)\]/);
+                    if (match) {
+                        noIdent = match[1];
+                    }
+                }
                 return {
                     cantidad: parseFloat(fila.querySelector('.cantidad').value),
                     valorUnitario: parseFloat(fila.querySelector('.p-unitario').value),
                     descuento: parseFloat(fila.querySelector('.descuento').value) || 0,
-                    descripcion: fila.querySelector('.descripcion').value,
-                    noIdentificacion: fila.querySelector('.no-identificacion')?.value || '',
+                    descripcion: descVal,
+                    noIdentificacion: noIdent,
                     claveProductoServicio: fila.querySelector('.clave-sat').value,
                     claveUnidad: fila.querySelector('.clave-unidad').value,
                     unidad: fila.querySelector('.unidad')?.value || 'Unidad'
@@ -3267,12 +3293,20 @@ function obtenerDatosTimbradoForm() {
             const cantidad = parseFloat(row.querySelector('.cantidad').value);
             const valorUnitario = parseFloat(row.querySelector('.p-unitario').value);
             const descuento = parseFloat(row.querySelector('.descuento').value) || 0;
+            const descVal = row.querySelector('.descripcion').value;
+            let noIdent = row.querySelector('.no-identificacion')?.value || '';
+            if (!noIdent && descVal) {
+                const match = descVal.match(/^\[(.*?)\]/);
+                if (match) {
+                    noIdent = match[1];
+                }
+            }
             const concepto = {
                 claveProductoServicio: row.querySelector('.clave-sat').value,
                 cantidad,
                 claveUnidad: row.querySelector('.clave-unidad').value,
-                descripcion: row.querySelector('.descripcion').value,
-                noIdentificacion: row.querySelector('.no-identificacion')?.value || '',
+                descripcion: descVal,
+                noIdentificacion: noIdent,
                 valorUnitario,
                 descuento,
                 peso: parseFloat(row.querySelector('.peso-unitario')?.value || 0),

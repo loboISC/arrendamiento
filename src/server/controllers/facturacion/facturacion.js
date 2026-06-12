@@ -2448,7 +2448,8 @@ exports.buscarConceptos = async (req, res) => {
                         clave_sat_productos: info ? info.clave_sat_productos : (p.clave_sat_productos || '01010101'),
                         nombre: internalKey ? `[${internalKey}] ${productName}` : productName,
                         precio_unitario: p.precio_unitario || (info ? info.precio_venta : (p.precio_venta || p.precio || 0)),
-                        peso: dbPeso > 0 ? dbPeso : jsonPeso
+                        peso: dbPeso > 0 ? dbPeso : jsonPeso,
+                        clave: internalKey || p.clave || ''
                     };
                 });
             }
@@ -2501,7 +2502,8 @@ exports.buscarConceptos = async (req, res) => {
                 sat: p.clave_sat_productos || '01010101',
                 unidad: 'H87', // Pieza por defecto
                 price: p.precio_venta || p.tarifa_renta || 0,
-                peso: p.peso || 0
+                peso: p.peso || 0,
+                clave: p.clave || ''
             });
         });
 
